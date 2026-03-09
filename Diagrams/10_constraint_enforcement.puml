@@ -1,0 +1,91 @@
+@startuml constraint_enforcement
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Role Enforcement — 5 Layers of Agent Constraints**
+
+skinparam rectangle {
+  FontColor #1A1A1A
+}
+
+rectangle "**Layer 1: System Prompts** (Soft Constraint)" as L1 #E3F2FD {
+  note right
+    Defines role, responsibilities,
+    and explicit restrictions.
+    ----
+    //Example: "You are the Market Researcher.//
+    //You CANNOT do financial analysis.//
+    //You CANNOT write the final report."//
+    ----
+    **Enforcement:** LLM instruction following
+    **Strength:** Soft — can be bypassed
+  end note
+}
+
+rectangle "**Layer 2: Tool Restrictions** (Hard Constraint)" as L2 #E8F5E9 {
+  note right
+    Each agent only has access to
+    specific tool functions.
+    ----
+    //Market Researcher: search_web(), read_document()//
+    //Financial Analyst: calculate(), create_projection()//
+    //Cannot call tools outside their set//
+    ----
+    **Enforcement:** API-level tool filtering
+    **Strength:** Hard — physically impossible
+  end note
+}
+
+rectangle "**Layer 3: Output Schemas** (Hard Constraint)" as L3 #FFF3E0 {
+  note right
+    Each agent must respond in a
+    specific JSON format.
+    ----
+    //Market Researcher → MarketAnalysis schema//
+    //Financial Analyst → FinancialAnalysis schema//
+    //Rejected if schema validation fails//
+    ----
+    **Enforcement:** Pydantic model validation
+    **Strength:** Hard — invalid output rejected
+  end note
+}
+
+rectangle "**Layer 4: Orchestrator Routing** (Hard Constraint)" as L4 #F3E5F5 {
+  note right
+    Central orchestrator controls data flow.
+    Each agent only sees relevant data.
+    ----
+    //Market Researcher never sees financial data//
+    //Risk Analyst never sees market research tools//
+    //Pure Python logic — no LLM involved//
+    ----
+    **Enforcement:** Code-level data isolation
+    **Strength:** Hard — data never exposed
+  end note
+}
+
+rectangle "**Layer 5: Validation Layer** (Safety Net)" as L5 #FFEBEE {
+  note right
+    Post-processing checks catch anything
+    that slips through other layers.
+    ----
+    //Check: Does output contain financial figures?//
+    //  → If agent is Market Researcher, flag violation//
+    //Check: Does output reference unauthorized data?//
+    //  → Reject and re-prompt//
+    ----
+    **Enforcement:** Rule-based post-processing
+    **Strength:** Safety net — catches edge cases
+  end note
+}
+
+L1 -[hidden]down- L2
+L2 -[hidden]down- L3
+L3 -[hidden]down- L4
+L4 -[hidden]down- L5
+
+@enduml

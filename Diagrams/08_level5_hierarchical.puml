@@ -1,0 +1,66 @@
+@startuml level5_hierarchical
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Level 5 — Hierarchical Organization**\n//Engagement Manager acts as managing partner with review authority//
+
+|#E3F2FD|Engagement Manager (Managing Partner)|
+start
+:Decompose question\ninto workstreams;
+:Delegate tasks to\nspecialist agents;
+
+fork
+  |#E8F5E9|Market Researcher|
+  :Conduct market analysis;
+  :Submit to EM for review;
+fork again
+  |#FFF3E0|Financial Analyst|
+  :Conduct financial analysis;
+  :Submit to EM for review;
+fork again
+  |#FFEBEE|Risk Analyst|
+  :Conduct risk assessment;
+  :Submit to EM for review;
+end fork
+
+|#E3F2FD|Engagement Manager (Managing Partner)|
+:Review all intermediate outputs;
+
+if (Quality sufficient?) then (yes)
+  :Approve and forward\nall analyses;
+else (no)
+  :Send back for revision\nwith specific feedback\ne.g. "Need more competitor detail";
+  note right
+    EM can reject and
+    request rework from
+    any specialist agent
+  end note
+  :Agent revises and resubmits;
+  :Re-review;
+endif
+
+:Forward approved analyses\nto Strategy Consultant;
+
+|#F3E5F5|Strategy Consultant|
+:Synthesize into final report;
+:Submit to EM;
+
+|#E3F2FD|Engagement Manager (Managing Partner)|
+:Final review of report;
+
+if (Report quality OK?) then (yes)
+  :Forward to Evaluator;
+else (no)
+  :Request revision from\nStrategy Consultant;
+endif
+
+|#FFFDE7|Evaluator|
+:Score on 6-criterion rubric;
+:Produce evaluation scorecard;
+stop
+
+@enduml

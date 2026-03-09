@@ -1,0 +1,75 @@
+@startuml progressive_complexity
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 8
+
+title **Progressive Complexity — 5 Levels of Agent Organization**
+
+skinparam rectangle {
+  FontColor #1A1A1A
+}
+
+' === LEVEL 1 ===
+rectangle "**Level 1 — Single Agent (Baseline)**" as L1 #E3F2FD {
+  rectangle "Generic Agent\n(No specialization)" as l1a #BBDEFB
+  note right of l1a
+    1 agent, 1 model
+    No role separation
+    No evaluation
+  end note
+}
+
+' === LEVEL 2 ===
+rectangle "**Level 2 — Two Agents (Basic Split)**" as L2 #E8F5E9 {
+  rectangle "Consultant Agent\n(Research + Analysis + Writing)" as l2a #C8E6C9
+  rectangle "Evaluator Agent\n(Quality Scoring)" as l2b #C8E6C9
+  l2a -right-> l2b : "report"
+}
+
+' === LEVEL 3 ===
+rectangle "**Level 3 — Four Agents (Core Roles)**" as L3 #FFF3E0 {
+  rectangle "Engagement\nManager" as l3em #FFE0B2
+  rectangle "Market\nResearcher" as l3mr #FFE0B2
+  rectangle "Strategy\nConsultant" as l3sc #FFE0B2
+  rectangle "Evaluator" as l3ev #FFE0B2
+  l3em -right-> l3mr : "plan"
+  l3mr -right-> l3sc : "findings"
+  l3sc -right-> l3ev : "report"
+}
+
+' === LEVEL 4 ===
+rectangle "**Level 4 — Six Agents (Full Specialization)**" as L4 #F3E5F5 {
+  rectangle "Engagement\nManager" as l4em #E1BEE7
+  rectangle "Market\nResearcher" as l4mr #E1BEE7
+  rectangle "Financial\nAnalyst" as l4fa #E1BEE7
+  rectangle "Risk\nAnalyst" as l4ra #E1BEE7
+  rectangle "Strategy\nConsultant" as l4sc #E1BEE7
+  rectangle "Evaluator" as l4ev #E1BEE7
+
+  l4em --> l4mr
+  l4em --> l4fa
+  l4em --> l4ra
+  l4mr --> l4sc
+  l4fa --> l4sc
+  l4ra --> l4sc
+  l4sc --> l4ev
+}
+
+' === LEVEL 5 ===
+rectangle "**Level 5 — Six Agents + Organizational Workflows**" as L5 #FFEBEE {
+  rectangle "Pipeline" as l5p #FFCDD2
+  rectangle "Hierarchical" as l5h #FFCDD2
+  rectangle "Hybrid\n(Hierarchical + Iteration)" as l5y #FFCDD2
+  l5p -[hidden]right- l5h
+  l5h -[hidden]right- l5y
+}
+
+L1 -[hidden]down- L2
+L2 -[hidden]down- L3
+L3 -[hidden]down- L4
+L4 -[hidden]down- L5
+
+@enduml

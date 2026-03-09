@@ -1,0 +1,53 @@
+@startuml level4_six_agents
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Level 4 — Six Agents (Full Specialization)**
+
+skinparam component {
+  FontColor #1A1A1A
+}
+
+actor "Client" as client
+
+package "Orchestrator (Python — No LLM)" as orch #F5F5F5 {
+  component "Task Router" as router
+  component "Validation\n& Schema\nEnforcer" as val
+}
+
+component "**Engagement Manager**\n//Claude Haiku//\n\nDecomposes question into\nworkstreams & assignments\n----\nTools: read_client_request()\nOutput: Analysis Plan JSON" as em #E3F2FD
+
+component "**Market Researcher**\n//Claude Sonnet//\n\nMarket size, competitors,\ntrends, customer segments\n----\nTools: search_web(), read_document(),\nsummarize_source()\nOutput: Market Analysis JSON" as mr #E8F5E9
+
+component "**Financial Analyst**\n//GPT-4o-mini//\n\nCosts, revenue, ROI,\nbreak-even, sensitivity\n----\nTools: calculate(), create_projection(),\nquery_data(), create_chart()\nOutput: Financial Analysis JSON" as fa #FFF3E0
+
+component "**Risk Analyst**\n//Mistral Medium//\n\nRegulatory, market, operational,\ncompetitive risks\n----\nTools: search_web(), read_document(),\nassess_risk()\nOutput: Risk Matrix JSON" as ra #FFEBEE
+
+component "**Strategy Consultant**\n//Claude Opus / GPT-4//\n\nSynthesizes all inputs into\nfinal recommendation with options\n----\nTools: read_market_research(),\nread_financial_analysis(),\nread_risk_assessment()\nOutput: Consulting Report JSON" as sc #F3E5F5
+
+component "**Evaluator**\n//Claude Sonnet//\n\nScores on 6-criterion rubric\nindependently\n----\nTools: read_final_report(),\nscore_report()\nOutput: Scorecard JSON" as ev #FFFDE7
+
+client -down-> router : "business\nquestion"
+router -down-> em : "route"
+
+em -down-> val : "analysis plan"
+val -down-> mr : "market\nworkstream"
+val -down-> fa : "financial\nworkstream"
+val -down-> ra : "risk\nworkstream"
+
+mr -down-> val : "market\nanalysis"
+fa -down-> val : "financial\nanalysis"
+ra -down-> val : "risk\nassessment"
+
+val -down-> sc : "all validated\nanalyses"
+sc -down-> val : "final report"
+val -down-> ev : "report for\nevaluation"
+
+ev -down-> client : "report +\nscorecard"
+
+@enduml

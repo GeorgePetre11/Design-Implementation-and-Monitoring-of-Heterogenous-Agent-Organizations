@@ -1,0 +1,46 @@
+@startuml level5_pipeline
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Level 5 — Pipeline Organization**\n//Fixed sequential order, no going back//
+
+|#E3F2FD|Stage 1|
+start
+:<<Engagement Manager>>\n**Claude Haiku**\n\nDecompose question\ninto workstreams;
+:Output: Analysis Plan;
+
+|#E8F5E9|Stage 2|
+:<<Market Researcher>>\n**Claude Sonnet**\n\nAnalyze market landscape;
+:Output: Market Analysis;
+
+|#FFF3E0|Stage 3|
+:<<Financial Analyst>>\n**GPT-4o-mini**\n\nModel financials & projections;
+:Output: Financial Analysis;
+
+|#FFEBEE|Stage 4|
+:<<Risk Analyst>>\n**Mistral Medium**\n\nIdentify & assess risks;
+:Output: Risk Matrix;
+
+|#F3E5F5|Stage 5|
+:<<Strategy Consultant>>\n**Claude Opus / GPT-4**\n\nSynthesize all inputs\ninto final recommendation;
+:Output: Consulting Report;
+
+|#FFFDE7|Stage 6|
+:<<Evaluator>>\n**Claude Sonnet**\n\nScore on 6-criterion rubric;
+:Output: Evaluation Scorecard;
+stop
+
+note right
+  **Pipeline characteristics:**
+  * Strictly sequential
+  * Each agent runs exactly once
+  * No iteration or feedback loops
+  * Fastest execution time
+  * No revision capability
+end note
+
+@enduml

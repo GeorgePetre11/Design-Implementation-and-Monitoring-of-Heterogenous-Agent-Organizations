@@ -1,0 +1,98 @@
+@startuml monitoring_architecture
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Monitoring & Dashboard Architecture**
+
+package "Agent Execution Layer" #E3F2FD {
+  component "Engagement\nManager" as em
+  component "Market\nResearcher" as mr
+  component "Financial\nAnalyst" as fa
+  component "Risk\nAnalyst" as ra
+  component "Strategy\nConsultant" as sc
+  component "Evaluator" as ev
+}
+
+package "Event Collection" #E8F5E9 {
+  component "Event Logger\n(Python)" as logger
+  note bottom of logger
+    Captures:
+    * agent_started
+    * agent_completed
+    * agent_failed
+    * message_sent
+    * validation_passed
+    * validation_failed
+    * token_usage
+    * latency_ms
+  end note
+}
+
+package "Storage" #FFF3E0 {
+  database "SQLite\nEvent Store" as db
+  note bottom of db
+    Tables:
+    * events
+    * agent_runs
+    * messages
+    * metrics
+    * evaluations
+  end note
+}
+
+package "Real-Time Transport" #F3E5F5 {
+  component "FastAPI\nWebSocket\nServer" as ws
+}
+
+package "Dashboard (React Frontend)" #FFFDE7 {
+  component "Agent Status\nCards" as cards
+  component "Communication\nGraph\n(React Flow)" as graph
+  component "Live Activity\nLog" as log
+  component "Task Board\n(Kanban)" as kanban
+  component "Metrics Panel\n(Recharts)" as metrics
+  component "Agent Detail\nView" as detail
+}
+
+em --> logger
+mr --> logger
+fa --> logger
+ra --> logger
+sc --> logger
+ev --> logger
+
+logger --> db : "persist\nevents"
+logger --> ws : "push\nreal-time"
+
+ws --> cards
+ws --> graph
+ws --> log
+ws --> kanban
+ws --> metrics
+ws --> detail
+
+note bottom of cards
+  Real-time status:
+  idle / working /
+  completed / failed
+end note
+
+note bottom of graph
+  Animated message flow
+  Different layouts per
+  org structure
+  (pipeline / hierarchy / hybrid)
+end note
+
+note bottom of metrics
+  Token usage per agent
+  Time per agent
+  Quality scores
+  Cost breakdown
+end note
+
+@enduml

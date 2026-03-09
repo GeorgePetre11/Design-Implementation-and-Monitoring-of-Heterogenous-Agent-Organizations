@@ -1,0 +1,32 @@
+@startuml level2_two_agents
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Level 2 — Two Agents (Basic Split)**
+
+|Client|
+start
+:Submit business question;
+
+|#E8F5E9|Consultant Agent|
+:Receive client question;
+:Conduct full research & analysis;
+:Write consulting report;
+
+|#FFF3E0|Evaluator Agent|
+:Receive final report;
+:Score **Completeness** (1-10);
+:Score **Accuracy** (1-10);
+:Score **Coherence** (1-10);
+:Score **Structure** (1-10);
+:Produce evaluation scorecard;
+
+|Client|
+:Receive report + evaluation;
+stop
+
+@enduml

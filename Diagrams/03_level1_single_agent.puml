@@ -1,0 +1,37 @@
+@startuml level1_single_agent
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 1 — Single Agent (Baseline)**
+
+|Client|
+start
+:Submit business question;
+
+|#E3F2FD|Generic Agent|
+:Receive client question;
+:Research the market;
+:Analyze financials;
+:Identify risks;
+:Synthesize findings;
+:Write consulting report;
+:Return report to client;
+
+|Client|
+:Receive report;
+note right
+  **No evaluation**
+  **No role separation**
+  **No specialization**
+  ----
+  Single model handles
+  everything end-to-end
+end note
+stop
+
+@enduml

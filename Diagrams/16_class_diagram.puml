@@ -1,0 +1,167 @@
+@startuml class_diagram
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 10
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam classAttributeIconSize 0
+
+title **Core Domain Model — Class Diagram**
+
+abstract class Agent {
+  - name: str
+  - role: AgentRole
+  - model: str
+  - provider: LLMProvider
+  - system_prompt: str
+  - allowed_tools: List[Tool]
+  - output_schema: Type[BaseModel]
+  + execute(input: AgentInput): AgentOutput
+  + validate_output(output): bool
+}
+
+class EngagementManager extends Agent {
+  - role = ENGAGEMENT_MANAGER
+  - model = "claude-haiku"
+  + decompose_question(): AnalysisPlan
+}
+
+class MarketResearcher extends Agent {
+  - role = MARKET_RESEARCHER
+  - model = "claude-sonnet"
+  + research_market(): MarketAnalysis
+}
+
+class FinancialAnalyst extends Agent {
+  - role = FINANCIAL_ANALYST
+  - model = "gpt-4o-mini"
+  + analyze_financials(): FinancialAnalysis
+}
+
+class RiskAnalyst extends Agent {
+  - role = RISK_ANALYST
+  - model = "mistral-medium"
+  + assess_risks(): RiskMatrix
+}
+
+class StrategyConsultant extends Agent {
+  - role = STRATEGY_CONSULTANT
+  - model = "claude-opus"
+  + synthesize_report(): ConsultingReport
+}
+
+class Evaluator extends Agent {
+  - role = EVALUATOR
+  - model = "claude-sonnet"
+  + evaluate_report(): EvaluationScorecard
+}
+
+abstract class Orchestrator {
+  - agents: Dict[AgentRole, Agent]
+  - event_logger: EventLogger
+  - validator: SchemaValidator
+  + run(question: str): OrchestratorResult
+  + route_task(task, agent): AgentOutput
+}
+
+class PipelineOrchestrator extends Orchestrator {
+  + run(): execute agents sequentially
+}
+
+class HierarchicalOrchestrator extends Orchestrator {
+  - max_revisions: int
+  + run(): EM reviews, can reject
+}
+
+class HybridOrchestrator extends Orchestrator {
+  - max_iterations: int
+  + run(): cross-agent iteration loops
+}
+
+class EventLogger {
+  - db: SQLiteConnection
+  - ws_manager: WebSocketManager
+  + log(event: Event): void
+  + push_realtime(event: Event): void
+}
+
+class SchemaValidator {
+  + validate(output, schema): bool
+  + check_role_violations(agent, output): List[Violation]
+}
+
+enum AgentRole {
+  ENGAGEMENT_MANAGER
+  MARKET_RESEARCHER
+  FINANCIAL_ANALYST
+  RISK_ANALYST
+  STRATEGY_CONSULTANT
+  EVALUATOR
+}
+
+enum LLMProvider {
+  ANTHROPIC
+  OPENAI
+  MISTRAL
+}
+
+' ── Output Models ──
+class AnalysisPlan {
+  workstreams: List[Workstream]
+  sub_questions: List[str]
+  assignments: Dict[AgentRole, List[str]]
+}
+
+class MarketAnalysis {
+  market_size: str
+  growth_rate: str
+  competitors: List[Competitor]
+  trends: List[Trend]
+  customer_segments: List[Segment]
+}
+
+class FinancialAnalysis {
+  cost_estimates: Dict
+  revenue_projections: List[Scenario]
+  roi: float
+  break_even_months: int
+  sensitivity: Dict
+}
+
+class RiskMatrix {
+  risks: List[Risk]
+}
+
+class ConsultingReport {
+  executive_summary: str
+  situation_analysis: str
+  options: List[StrategicOption]
+  recommendation: str
+  implementation_roadmap: List[Phase]
+}
+
+class EvaluationScorecard {
+  completeness: int
+  accuracy: int
+  coherence: int
+  structure: int
+  actionability: int
+  critical_depth: int
+  justifications: Dict[str, str]
+}
+
+Agent --> AgentRole
+Agent --> LLMProvider
+Orchestrator o-- Agent
+Orchestrator --> EventLogger
+Orchestrator --> SchemaValidator
+
+EngagementManager ..> AnalysisPlan : produces
+MarketResearcher ..> MarketAnalysis : produces
+FinancialAnalyst ..> FinancialAnalysis : produces
+RiskAnalyst ..> RiskMatrix : produces
+StrategyConsultant ..> ConsultingReport : produces
+Evaluator ..> EvaluationScorecard : produces
+
+@enduml

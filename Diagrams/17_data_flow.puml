@@ -1,0 +1,63 @@
+@startuml data_flow
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Data Flow & Isolation — What Each Agent Sees**
+
+left to right direction
+
+rectangle "Client Question" as input #F5F5F5
+
+rectangle "Engagement\nManager" as em #E3F2FD
+rectangle "Market\nResearcher" as mr #E8F5E9
+rectangle "Financial\nAnalyst" as fa #FFF3E0
+rectangle "Risk\nAnalyst" as ra #FFEBEE
+rectangle "Strategy\nConsultant" as sc #F3E5F5
+rectangle "Evaluator" as ev #FFFDE7
+
+card "Analysis\nPlan" as plan #BBDEFB
+card "Market\nAnalysis" as mdata #C8E6C9
+card "Financial\nAnalysis" as fdata #FFE0B2
+card "Risk\nMatrix" as rdata #FFCDD2
+card "Consulting\nReport" as report #E1BEE7
+card "Evaluation\nScorecard" as score #FFF9C4
+
+input --> em
+em --> plan
+
+plan --> mr : "market workstream only"
+plan --> fa : "financial workstream only"
+plan --> ra : "risk workstream only"
+
+mr --> mdata
+fa --> fdata
+ra --> rdata
+
+mdata --> sc
+fdata --> sc
+rdata --> sc
+
+sc --> report
+report --> ev
+ev --> score
+
+note as N1
+  **Data Isolation Rules:**
+  ----
+  Market Researcher: sees plan + market workstream
+    //never sees financial data or risk data//
+  Financial Analyst: sees plan + financial workstream
+    //never sees market research or risk data//
+  Risk Analyst: sees plan + risk workstream
+    //never sees market or financial data//
+  Strategy Consultant: sees ALL three analyses
+    //cannot search for new info//
+  Evaluator: sees only the final report
+    //cannot modify anything//
+end note
+
+@enduml

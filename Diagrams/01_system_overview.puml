@@ -1,0 +1,95 @@
+@startuml system_overview
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam packageStyle frame
+
+title **Heterogeneous Agent Organization — System Overview**
+
+skinparam component {
+  BackgroundColor #E8F4FD
+  BorderColor #2196F3
+  FontColor #1A1A1A
+}
+
+skinparam database {
+  BackgroundColor #FFF3E0
+  BorderColor #FF9800
+}
+
+skinparam rectangle {
+  BackgroundColor #F3E5F5
+  BorderColor #9C27B0
+}
+
+package "Client Layer" #FFFDE7 {
+  actor "Client" as client
+  component "Business Question\nInput Interface" as input
+}
+
+package "Orchestrator (Pure Python — No LLM)" #E8F5E9 {
+  component "Task Router &\nWorkflow Engine" as router
+  component "Validation Layer" as validator
+  component "Schema Enforcer" as schema
+  component "Event Logger" as logger
+}
+
+package "Agent Pool" #E8F4FD {
+  component "Engagement\nManager" as em <<Haiku>>
+  component "Market\nResearcher" as mr <<Sonnet>>
+  component "Financial\nAnalyst" as fa <<GPT-4o-mini>>
+  component "Risk\nAnalyst" as ra <<Mistral>>
+  component "Strategy\nConsultant" as sc <<Opus/GPT-4>>
+  component "Evaluator" as ev <<Sonnet>>
+}
+
+package "LLM Providers" #FFF3E0 {
+  component "Anthropic API\n(Claude)" as anthropic
+  component "OpenAI API\n(GPT)" as openai
+  component "Mistral API" as mistral
+}
+
+package "Monitoring & Dashboard" #F3E5F5 {
+  database "SQLite\nEvent Store" as db
+  component "WebSocket\nServer" as ws
+  component "React Dashboard\n(Frontend)" as dash
+}
+
+client --> input
+input --> router
+
+router --> em
+router --> mr
+router --> fa
+router --> ra
+router --> sc
+router --> ev
+
+em --> validator
+mr --> validator
+fa --> validator
+ra --> validator
+sc --> validator
+ev --> validator
+
+validator --> schema
+
+em ..> anthropic
+mr ..> anthropic
+fa ..> openai
+ra ..> mistral
+sc ..> anthropic
+ev ..> anthropic
+
+logger --> db
+db --> ws
+ws --> dash
+
+router --> logger : "events"
+validator --> logger : "validation\nevents"
+
+@enduml

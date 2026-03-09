@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Consulting Firm — Level 1</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; color: #f8fafc; }
+    header p  { margin-top: 0.4rem; font-size: 0.9rem; color: #94a3b8; }
+
+    .badge {
+      display: inline-block;
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #7dd3fc;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      margin-top: 0.5rem;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+      background: #0f1117;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      padding: 0.75rem 1rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #7dd3fc; }
+    textarea::placeholder { color: #475569; }
+
+    .row {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.75rem;
+      align-items: center;
+    }
+
+    button {
+      background: #0ea5e9;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.6rem 1.4rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    button:hover:not(:disabled) { background: #38bdf8; }
+    button:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+    #status {
+      font-size: 0.82rem;
+      color: #64748b;
+    }
+    #status.running { color: #7dd3fc; }
+    #status.done    { color: #4ade80; }
+    #status.error   { color: #f87171; }
+
+    /* Monitoring bar */
+    #monitor-bar {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+    .metric {
+      background: #0f1117;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem;
+      color: #94a3b8;
+    }
+    .metric span { color: #f8fafc; font-weight: 600; margin-left: 0.3rem; }
+
+    /* Output */
+    #output-section {
+      width: 100%;
+      max-width: 800px;
+      margin-top: 1.5rem;
+      display: none;
+    }
+    #output-section h2 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+
+    #output {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1.5rem 2rem;
+      white-space: pre-wrap;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      color: #e2e8f0;
+      min-height: 200px;
+      max-height: 70vh;
+      overflow-y: auto;
+    }
+
+    /* Markdown-like styling inside #output */
+    #output h1, #output h2, #output h3 {
+      color: #f8fafc;
+      margin: 1rem 0 0.4rem;
+      font-weight: 700;
+    }
+    #output h1 { font-size: 1.3rem; border-bottom: 1px solid #334155; padding-bottom: 0.3rem; }
+    #output h2 { font-size: 1.1rem; }
+    #output h3 { font-size: 0.95rem; color: #7dd3fc; }
+    #output strong { color: #f8fafc; }
+    #output hr { border: none; border-top: 1px solid #334155; margin: 1rem 0; }
+
+    .copy-btn {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #94a3b8;
+      padding: 0.35rem 0.8rem;
+      font-size: 0.78rem;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-left: auto;
+    }
+    .copy-btn:hover { border-color: #7dd3fc; color: #7dd3fc; background: #1e293b; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>AI Consulting Firm</h1>
+  <p>Heterogeneous Agent Organizations — Thesis Project</p>
+  <span class="badge">Level 1 · Single Agent · qwen2.5:14b</span>
+</header>
+
+<div class="card">
+  <textarea
+    id="question"
+    placeholder="Enter your business question, e.g. &quot;We are a mid-size European SaaS company. Should we expand into the US market?&quot;"
+  ></textarea>
+
+  <div class="row">
+    <button id="submit-btn" onclick="startAnalysis()">Analyze</button>
+    <span id="status">Ready</span>
+  </div>
+
+  <div id="monitor-bar">
+    <div class="metric">Session <span id="m-session">—</span></div>
+    <div class="metric">Tokens <span id="m-tokens">0</span></div>
+    <div class="metric">Elapsed <span id="m-elapsed">—</span></div>
+    <div class="metric">Agent <span id="m-agent">Idle</span></div>
+  </div>
+</div>
+
+<div id="output-section">
+  <div class="toolbar">
+    <h2>Consulting Report</h2>
+    <button class="copy-btn" onclick="copyReport()">Copy</button>
+  </div>
+  <div id="output"></div>
+</div>
+
+<script>
+  const API = "http://localhost:8000";
+  let tokenCount = 0;
+  let startTime = null;
+  let timerInterval = null;
+  let rawText = "";
+
+  function setStatus(text, cls) {
+    const el = document.getElementById("status");
+    el.textContent = text;
+    el.className = cls || "";
+  }
+
+  function updateTimer() {
+    if (!startTime) return;
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    document.getElementById("m-elapsed").textContent = elapsed + "s";
+  }
+
+  function renderMarkdown(text) {
+    // Minimal markdown rendering for the output panel
+    return text
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/^---$/gm, '<hr>')
+      .replace(/\n/g, '<br>');
+  }
+
+  async function startAnalysis() {
+    const question = document.getElementById("question").value.trim();
+    if (!question) { setStatus("Please enter a question.", "error"); return; }
+
+    // Reset state
+    rawText = "";
+    tokenCount = 0;
+    document.getElementById("m-tokens").textContent = "0";
+    document.getElementById("m-elapsed").textContent = "—";
+    document.getElementById("m-agent").textContent = "Working…";
+    document.getElementById("output").innerHTML = "";
+    document.getElementById("output-section").style.display = "block";
+    document.getElementById("submit-btn").disabled = true;
+    setStatus("Sending to agent…", "running");
+
+    startTime = Date.now();
+    timerInterval = setInterval(updateTimer, 200);
+
+    try {
+      const res = await fetch(`${API}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      setStatus("Agent is writing the report…", "running");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop(); // keep incomplete line
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (!raw) continue;
+
+          let msg;
+          try { msg = JSON.parse(raw); } catch { continue; }
+
+          if (msg.session_id && !document.getElementById("m-session").textContent.includes("-")) {
+            document.getElementById("m-session").textContent = msg.session_id.slice(0, 8) + "…";
+          }
+
+          if (msg.token) {
+            rawText += msg.token;
+            tokenCount += msg.token.length;
+            document.getElementById("m-tokens").textContent = tokenCount;
+            document.getElementById("output").innerHTML = renderMarkdown(rawText);
+            // Auto-scroll
+            const out = document.getElementById("output");
+            out.scrollTop = out.scrollHeight;
+          }
+
+          if (msg.done) {
+            clearInterval(timerInterval);
+            updateTimer();
+            document.getElementById("m-agent").textContent = "Done";
+            setStatus("Report complete.", "done");
+            document.getElementById("submit-btn").disabled = false;
+          }
+
+          if (msg.error) {
+            clearInterval(timerInterval);
+            setStatus("Error: " + msg.error, "error");
+            document.getElementById("m-agent").textContent = "Error";
+            document.getElementById("submit-btn").disabled = false;
+          }
+        }
+      }
+    } catch (err) {
+      clearInterval(timerInterval);
+      setStatus("Connection error: " + err.message, "error");
+      document.getElementById("m-agent").textContent = "Error";
+      document.getElementById("submit-btn").disabled = false;
+    }
+  }
+
+  function copyReport() {
+    navigator.clipboard.writeText(rawText).then(() => {
+      const btn = document.querySelector(".copy-btn");
+      btn.textContent = "Copied!";
+      setTimeout(() => btn.textContent = "Copy", 1500);
+    });
+  }
+
+  // Allow Ctrl+Enter to submit
+  document.getElementById("question").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.ctrlKey) startAnalysis();
+  });
+</script>
+</body>
+</html>

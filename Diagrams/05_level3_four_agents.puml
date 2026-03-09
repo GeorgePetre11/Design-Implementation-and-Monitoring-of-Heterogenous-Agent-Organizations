@@ -1,0 +1,49 @@
+@startuml level3_four_agents
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Level 3 — Four Agents (Core Roles)**
+
+|Client|
+start
+:Submit business question;
+
+|#E3F2FD|Engagement Manager|
+:Decompose question into\nworkstreams & sub-questions;
+:Create analysis plan;
+note right
+  **Tools:** read_client_request()
+  **Cannot:** research, analyze, write report
+end note
+
+|#E8F5E9|Market Researcher|
+:Receive analysis plan;
+:Investigate market landscape;
+:Produce structured findings\n(competitors, trends, segments);
+note right
+  **Tools:** search_web(), read_document(),
+  summarize_source()
+end note
+
+|#F3E5F5|Strategy Consultant|
+:Receive market findings;
+:Synthesize into recommendation;
+:Write final consulting report\nwith options & tradeoffs;
+note right
+  **Tools:** read_market_research()
+  **Cannot:** search for new info
+end note
+
+|#FFF3E0|Evaluator|
+:Score report on rubric\n(completeness, accuracy,\ncoherence, structure);
+:Produce evaluation scorecard;
+
+|Client|
+:Receive report + evaluation;
+stop
+
+@enduml

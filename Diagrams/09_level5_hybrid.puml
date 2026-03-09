@@ -1,0 +1,79 @@
+@startuml level5_hybrid
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Level 5 — Hybrid Organization**\n//Hierarchical management + cross-agent iteration loops//
+
+|#E3F2FD|Engagement Manager|
+start
+:Decompose & delegate;
+
+fork
+  |#E8F5E9|Market Researcher|
+  :Market analysis;
+fork again
+  |#FFF3E0|Financial Analyst|
+  :Financial analysis;
+fork again
+  |#FFEBEE|Risk Analyst|
+  :Risk assessment;
+end fork
+
+|#E3F2FD|Engagement Manager|
+:Review intermediate outputs;
+
+if (EM approves?) then (yes)
+  :Forward to Strategy Consultant;
+else (no)
+  :Request revisions\n(with feedback);
+  backward :Specialists revise;
+endif
+
+|#F3E5F5|Strategy Consultant|
+:Begin synthesis;
+
+if (Needs more financial scenarios?) then (yes)
+  |#FFF3E0|Financial Analyst|
+  :Generate additional\nscenarios as requested;
+  |#F3E5F5|Strategy Consultant|
+  :Incorporate new data;
+endif
+
+if (Risk Analyst flags new issues\nrequiring market data?) then (yes)
+  |#FFEBEE|Risk Analyst|
+  :Flag issue to EM;
+  |#E3F2FD|Engagement Manager|
+  :Route request to\nMarket Researcher;
+  |#E8F5E9|Market Researcher|
+  :Provide supplementary\nmarket research;
+  |#FFEBEE|Risk Analyst|
+  :Update risk assessment;
+  |#F3E5F5|Strategy Consultant|
+  :Re-incorporate;
+endif
+
+|#F3E5F5|Strategy Consultant|
+:Finalize consulting report;
+
+|#E3F2FD|Engagement Manager|
+:Final quality gate;
+
+|#FFFDE7|Evaluator|
+:Score on 6-criterion rubric;
+stop
+
+note right
+  **Hybrid characteristics:**
+  * Hierarchical control (EM reviews)
+  * Cross-agent iteration loops
+  * Risk Analyst → Market Researcher feedback
+  * Strategy Consultant → Financial Analyst requests
+  * Multiple rounds until quality sufficient
+  * Highest quality, highest cost/time
+end note
+
+@enduml

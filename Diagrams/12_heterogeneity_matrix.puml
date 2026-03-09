@@ -1,0 +1,86 @@
+@startuml heterogeneity_matrix
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 8
+
+title **Agent Heterogeneity — Multi-Model, Multi-Provider Architecture**
+
+skinparam object {
+  BackgroundColor #FAFAFA
+  BorderColor #BDBDBD
+  FontColor #1A1A1A
+}
+
+object "**Engagement Manager**" as em #E3F2FD {
+  Model = Claude Haiku (Small)
+  Provider = Anthropic
+  Tools = read_client_request()
+  Output = Analysis Plan JSON
+  Role = Task decomposition
+  Reasoning = Fast, structured task
+}
+
+object "**Market Researcher**" as mr #E8F5E9 {
+  Model = Claude Sonnet (Medium)
+  Provider = Anthropic
+  Tools = search_web(), read_document(), summarize_source()
+  Output = Market Analysis JSON
+  Role = Market investigation
+  Reasoning = Good synthesis ability
+}
+
+object "**Financial Analyst**" as fa #FFF3E0 {
+  Model = GPT-4o-mini (Medium)
+  Provider = OpenAI
+  Tools = calculate(), create_projection(), query_data(), create_chart()
+  Output = Financial Analysis JSON
+  Role = Quantitative analysis
+  Reasoning = Strong numerical reasoning
+}
+
+object "**Risk Analyst**" as ra #FFEBEE {
+  Model = Mistral Medium
+  Provider = Mistral
+  Tools = search_web(), read_document(), assess_risk()
+  Output = Risk Matrix JSON
+  Role = Risk identification
+  Reasoning = Edge case thinking
+}
+
+object "**Strategy Consultant**" as sc #F3E5F5 {
+  Model = Claude Opus / GPT-4 (Large)
+  Provider = Anthropic / OpenAI
+  Tools = read_market_research(), read_financial_analysis(), read_risk_assessment()
+  Output = Consulting Report JSON
+  Role = Synthesis & recommendation
+  Reasoning = Best writing & reasoning
+}
+
+object "**Evaluator**" as ev #FFFDE7 {
+  Model = Claude Sonnet (Large)
+  Provider = Anthropic
+  Tools = read_final_report(), score_report()
+  Output = Scorecard JSON
+  Role = Independent quality judge
+  Reasoning = Critical assessment
+}
+
+em -[hidden]right- mr
+mr -[hidden]right- fa
+fa -[hidden]down- ra
+ra -[hidden]left- sc
+sc -[hidden]left- ev
+
+note as N1
+  **Heterogeneity Dimensions:**
+  1. **Model Size:** Small → Medium → Large
+  2. **Provider:** Anthropic, OpenAI, Mistral
+  3. **Tools:** Different tool sets per agent
+  4. **Output Schema:** Different JSON structures
+  5. **Reasoning Style:** Structured vs. analytical vs. creative
+end note
+
+@enduml

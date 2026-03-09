@@ -1,0 +1,61 @@
+@startuml evaluation_strategy
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Evaluation Strategy & Experiments**
+
+skinparam rectangle {
+  FontColor #1A1A1A
+}
+
+rectangle "**Evaluation Rubric (6 Criteria)**" as rubric #E3F2FD {
+  rectangle "Completeness (1-10)\nAll aspects of question addressed?" as c1 #BBDEFB
+  rectangle "Accuracy (1-10)\nClaims and numbers supported?" as c2 #BBDEFB
+  rectangle "Coherence (1-10)\nLogical flow: data → recommendation?" as c3 #BBDEFB
+  rectangle "Structure (1-10)\nProfessional consulting format?" as c4 #BBDEFB
+  rectangle "Actionability (1-10)\nSpecific enough to act on?" as c5 #BBDEFB
+  rectangle "Critical Depth (1-10)\nRisks & counterarguments addressed?" as c6 #BBDEFB
+}
+
+rectangle "**Experiment 1: Progressive Complexity**" as exp1 #E8F5E9 {
+  note right
+    Same question → all 5 levels
+    Compare evaluator scores
+    Hypothesis: Higher levels = higher quality
+  end note
+}
+
+rectangle "**Experiment 2: Organizational Structure**" as exp2 #FFF3E0 {
+  note right
+    Level 5 only: Pipeline vs Hierarchical vs Hybrid
+    Compare quality, time, cost
+    Hypothesis: Hybrid = best quality, Pipeline = fastest
+  end note
+}
+
+rectangle "**Experiment 3: Heterogeneity Impact**" as exp3 #F3E5F5 {
+  note right
+    All same model (e.g., all Sonnet)
+    vs mixed models (Haiku + Sonnet + GPT + Mistral)
+    Compare output quality
+  end note
+}
+
+rectangle "**Experiment 4: Evaluator Consistency**" as exp4 #FFEBEE {
+  note right
+    Run evaluator multiple times on same report
+    Compare LLM evaluator scores with human scores
+    Measure inter-rater reliability
+  end note
+}
+
+rubric -[hidden]down- exp1
+exp1 -[hidden]down- exp2
+exp2 -[hidden]down- exp3
+exp3 -[hidden]down- exp4
+
+@enduml

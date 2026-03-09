@@ -1,0 +1,77 @@
+@startuml sequence_level4
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam sequenceMessageAlign center
+
+title **Level 4 — Full Execution Sequence**\n//Example: "Should we expand into the US market?"//
+
+actor Client as client
+participant "Orchestrator" as orch #F5F5F5
+participant "Engagement\nManager\n(Haiku)" as em #E3F2FD
+participant "Market\nResearcher\n(Sonnet)" as mr #E8F5E9
+participant "Financial\nAnalyst\n(GPT-4o-mini)" as fa #FFF3E0
+participant "Risk\nAnalyst\n(Mistral)" as ra #FFEBEE
+participant "Strategy\nConsultant\n(Opus)" as sc #F3E5F5
+participant "Evaluator\n(Sonnet)" as ev #FFFDE7
+database "Event\nStore" as db
+
+client -> orch : Business question
+orch -> db : log(question_received)
+
+== Phase 1: Task Decomposition ==
+
+orch -> em : question + read_client_request()
+activate em
+em --> orch : Analysis Plan JSON\n(4 workstreams)
+deactivate em
+orch -> db : log(em_completed, plan)
+orch -> orch : validate(AnalysisPlanSchema)
+
+== Phase 2: Parallel Research ==
+
+orch -> mr : plan.market_workstream\n+ [search_web, read_doc, summarize]
+activate mr
+orch -> fa : plan.financial_workstream\n+ [calculate, project, chart]
+activate fa
+orch -> ra : plan.risk_workstream\n+ [search_web, read_doc, assess_risk]
+activate ra
+
+mr --> orch : Market Analysis JSON
+deactivate mr
+orch -> db : log(mr_completed)
+orch -> orch : validate(MarketAnalysisSchema)
+
+fa --> orch : Financial Analysis JSON
+deactivate fa
+orch -> db : log(fa_completed)
+orch -> orch : validate(FinancialAnalysisSchema)
+
+ra --> orch : Risk Matrix JSON
+deactivate ra
+orch -> db : log(ra_completed)
+orch -> orch : validate(RiskMatrixSchema)
+
+== Phase 3: Synthesis ==
+
+orch -> sc : market_analysis +\nfinancial_analysis +\nrisk_matrix\n+ [read_all_analyses]
+activate sc
+sc --> orch : Consulting Report JSON
+deactivate sc
+orch -> db : log(sc_completed)
+orch -> orch : validate(ConsultingReportSchema)
+
+== Phase 4: Evaluation ==
+
+orch -> ev : consulting_report\n+ [read_report, score]
+activate ev
+ev --> orch : Scorecard JSON\n(6 criteria × score 1-10)
+deactivate ev
+orch -> db : log(ev_completed, scores)
+
+orch -> client : Final Report + Scorecard
+
+@enduml

@@ -1,0 +1,72 @@
+@startuml tech_stack
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Technology Stack — Component Architecture**
+
+package "Frontend" #FFFDE7 {
+  component "React" as react
+  component "Recharts\n(Metrics)" as recharts
+  component "React Flow\n(Agent Graph)" as reactflow
+  component "WebSocket\nClient" as wsclient
+}
+
+package "Backend / API" #E8F5E9 {
+  component "FastAPI" as fastapi
+  component "WebSocket\nEndpoint" as wsserver
+  component "REST API\n(Runs, Results)" as rest
+}
+
+package "Orchestration Engine" #E3F2FD {
+  component "Workflow Engine\n(Python)" as workflow
+  component "Task Router" as tasker
+  component "Schema Validator\n(Pydantic)" as pydantic
+  component "Event Logger" as evlog
+}
+
+package "Agent Runtime" #F3E5F5 {
+  component "Agent Base\nClass" as agentbase
+  component "Tool Registry" as tools
+  component "Prompt\nTemplates" as prompts
+  component "Output\nParsers" as parsers
+}
+
+package "LLM Clients" #FFF3E0 {
+  component "anthropic\nSDK" as anth
+  component "openai\nSDK" as oai
+  component "mistralai\nSDK" as mist
+}
+
+package "Data Layer" #FFEBEE {
+  database "SQLite" as sqlite
+}
+
+wsclient <--> wsserver : "WebSocket"
+react --> recharts
+react --> reactflow
+rest <-- react : "HTTP"
+
+fastapi --> wsserver
+fastapi --> rest
+
+workflow --> tasker
+tasker --> agentbase
+agentbase --> pydantic
+agentbase --> tools
+agentbase --> prompts
+agentbase --> parsers
+workflow --> evlog
+
+agentbase --> anth
+agentbase --> oai
+agentbase --> mist
+
+evlog --> sqlite
+rest --> sqlite
+
+@enduml
