@@ -201,6 +201,7 @@
   <div class="toolbar">
     <h2>Consulting Report</h2>
     <button class="copy-btn" onclick="copyReport()">Copy</button>
+    <button class="copy-btn" onclick="downloadPDF()">Download PDF</button>
   </div>
   <div id="output"></div>
 </div>
@@ -329,6 +330,54 @@
       btn.textContent = "Copied!";
       setTimeout(() => btn.textContent = "Copy", 1500);
     });
+  }
+
+  function downloadPDF() {
+    const question = document.getElementById("question").value.trim();
+    const printWindow = window.open("", "_blank");
+    printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Consulting Report</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Georgia, serif;
+      font-size: 13px;
+      line-height: 1.8;
+      color: #1a1a1a;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 0 40px;
+    }
+    h1 { font-size: 1.6rem; border-bottom: 2px solid #1a1a1a; padding-bottom: 6px; margin-top: 1.5rem; }
+    h2 { font-size: 1.25rem; margin-top: 1.4rem; color: #111; }
+    h3 { font-size: 1.05rem; margin-top: 1rem; color: #333; }
+    hr { border: none; border-top: 1px solid #ccc; margin: 1.5rem 0; }
+    strong { font-weight: 700; }
+    .meta {
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 1rem;
+    }
+    @media print {
+      body { margin: 0; padding: 20px 40px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="meta">
+    <strong>AI Consulting Firm — Level 1 (Single Agent)</strong><br/>
+    <strong>Question:</strong> ${question}<br/>
+    <strong>Generated:</strong> ${new Date().toLocaleString()}
+  </div>
+  ${document.getElementById("output").innerHTML}
+  <script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`);
+    printWindow.document.close();
   }
 
   // Allow Ctrl+Enter to submit
