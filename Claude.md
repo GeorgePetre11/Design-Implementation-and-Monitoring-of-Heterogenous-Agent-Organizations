@@ -24,17 +24,13 @@ A key deliverable is a **monitoring dashboard** that visualizes agent activity, 
 **Level 1 — Single Agent (Baseline):**
 One generic agent with no system prompt specialization. Receives a business question and produces a consulting report by itself. No role separation, no restrictions.
 
-**Level 2 — Two Agents (Basic Split):**
-- Consultant Agent: does all the research, analysis, and writing
-- Evaluator Agent: independently scores the output on completeness, accuracy, coherence, and structure
-
-**Level 3 — Four Agents (Core Roles):**
+**Level 2 — Four Agents (Core Roles):**
 - Engagement Manager Agent: breaks the client question into workstreams and sub-questions. Creates an analysis plan. Does NOT do any research or analysis itself.
 - Market Researcher Agent: investigates the market — competitors, trends, customer landscape. Produces structured findings. Does NOT write the final report.
 - Strategy Consultant Agent: takes all findings and synthesizes them into a recommendation with clear options and tradeoffs. Writes the final deliverable.
 - Evaluator Agent: scores the final output.
 
-**Level 4 — Six Agents (Full Specialization):**
+**Level 3 — Six Agents (Full Specialization):**
 - Engagement Manager Agent: breaks the question into workstreams, assigns tasks, manages workflow. Acts as project lead.
 - Market Researcher Agent: analyzes the target market — size, growth, competitors, trends, customer segments. Only does market research — no financials, no risk.
 - Financial Analyst Agent: handles all numbers — costs, revenue projections, ROI, break-even analysis, financial modeling. Only works with quantitative data.
@@ -42,7 +38,7 @@ One generic agent with no system prompt specialization. Receives a business ques
 - Strategy Consultant Agent: receives market research, financial analysis, AND risk assessment, then synthesizes everything into a final recommendation with options (e.g., Option A: aggressive expansion, Option B: phased approach, Option C: don't proceed). Writes the final consulting report.
 - Evaluator Agent: independent final judge. Scores on a rubric.
 
-**Level 5 — Six Agents + Organizational Workflows:**
+**Level 4 — Six Agents + Organizational Workflows:**
 Same six agents as Level 4, tested in three different organizational structures:
 - **Pipeline:** Engagement Manager → Market Researcher → Financial Analyst → Risk Analyst → Strategy Consultant → Evaluator (fixed sequential order, no going back)
 - **Hierarchical:** Engagement Manager acts as a managing partner — delegates tasks, reviews intermediate outputs, can send work back for revision ("this market analysis needs more competitor detail"), decides when work is ready to move forward
