@@ -1,0 +1,281 @@
+"""
+Level 2 — Sequential Pipeline Orchestrator.
+
+Pure-Python orchestrator (no LLM) that routes data between four agents
+in a fixed sequence:
+
+  Engagement Manager → Market Researcher → Strategy Consultant → Evaluator
+
+This module implements constraint layer #4 (orchestrator routing):
+each agent only receives the data it is allowed to see.
+"""
+
+import json
+import time
+from typing import Generator
+
+from agents import (
+    EngagementManager,
+    MarketResearcher,
+    StrategyConsultant,
+    Evaluator,
+    strip_think_tags,
+)
+import monitor
+import state
+
+MAX_RETRIES = 2  # retry once on JSON parse failure
+
+
+def _sse(data: dict) -> str:
+    """Format a dict as an SSE data line."""
+    return f"data: {json.dumps(data)}\n\n"
+
+
+def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
+    """
+    Execute the four-agent pipeline and yield SSE event strings.
+
+    SSE event types emitted:
+      agent_start   — an agent begins processing
+      agent_output  — a structured agent (JSON) has produced its output
+      token         — a streaming token from the Strategy Consultant
+      agent_complete— a streaming agent finished (no payload)
+      error         — an error occurred in an agent
+      done          — the full pipeline is complete
+    """
+
+    em = EngagementManager()
+    mr = MarketResearcher()
+    sc = StrategyConsultant()
+    ev = Evaluator()
+
+    # Initialize pipeline state for the dashboard
+    state.reset_state(session_id, question, [
+        {"name": em.name, "display_name": em.display_name, "model": em.model},
+        {"name": mr.name, "display_name": mr.display_name, "model": mr.model},
+        {"name": sc.name, "display_name": sc.display_name, "model": sc.model},
+        {"name": ev.name, "display_name": ev.display_name, "model": ev.model},
+    ])
+
+    # ------------------------------------------------------------------
+    # Phase 1: Engagement Manager — decompose the question
+    # ------------------------------------------------------------------
+    state.update_agent(em.name, "working")
+    yield _sse({
+        "type": "agent_start",
+        "agent": em.name,
+        "display_name": em.display_name,
+        "model": em.model,
+    })
+    monitor.log_event(
+        session_id, "agent_start",
+        agent_name=em.display_name,
+        data={"model": em.model},
+    )
+
+    try:
+        t0 = time.time()
+        plan_data = None
+        last_err = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                plan_data = em.run(question)
+                break
+            except (ValueError, Exception) as e:
+                last_err = e
+                if attempt < MAX_RETRIES - 1:
+                    continue
+        if plan_data is None:
+            raise last_err
+        elapsed = round(time.time() - t0, 2)
+    except Exception as exc:
+        state.update_agent(em.name, "error", error=str(exc))
+        state.fail_pipeline(str(exc))
+        monitor.log_event(
+            session_id, "agent_error",
+            agent_name=em.display_name,
+            data={"error": str(exc)},
+        )
+        yield _sse({"type": "error", "agent": em.name, "error": str(exc)})
+        return
+
+    state.update_agent(em.name, "done", elapsed=elapsed, output=plan_data)
+    monitor.log_event(
+        session_id, "agent_complete",
+        agent_name=em.display_name,
+        data={"elapsed": elapsed},
+    )
+    yield _sse({
+        "type": "agent_output",
+        "agent": em.name,
+        "output": plan_data,
+        "elapsed": elapsed,
+    })
+
+    # ------------------------------------------------------------------
+    # Phase 2: Market Researcher — investigate the market
+    # ------------------------------------------------------------------
+    state.update_agent(mr.name, "working")
+    yield _sse({
+        "type": "agent_start",
+        "agent": mr.name,
+        "display_name": mr.display_name,
+        "model": mr.model,
+    })
+    monitor.log_event(
+        session_id, "agent_start",
+        agent_name=mr.display_name,
+        data={"model": mr.model},
+    )
+
+    try:
+        t0 = time.time()
+        # Orchestrator routing: MR receives only question + analysis plan
+        research_data = None
+        last_err = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                research_data = mr.run(question, plan_data)
+                break
+            except (ValueError, Exception) as e:
+                last_err = e
+                if attempt < MAX_RETRIES - 1:
+                    continue
+        if research_data is None:
+            raise last_err
+        elapsed = round(time.time() - t0, 2)
+    except Exception as exc:
+        state.update_agent(mr.name, "error", error=str(exc))
+        state.fail_pipeline(str(exc))
+        monitor.log_event(
+            session_id, "agent_error",
+            agent_name=mr.display_name,
+            data={"error": str(exc)},
+        )
+        yield _sse({"type": "error", "agent": mr.name, "error": str(exc)})
+        return
+
+    state.update_agent(mr.name, "done", elapsed=elapsed, output=research_data)
+    monitor.log_event(
+        session_id, "agent_complete",
+        agent_name=mr.display_name,
+        data={"elapsed": elapsed},
+    )
+    yield _sse({
+        "type": "agent_output",
+        "agent": mr.name,
+        "output": research_data,
+        "elapsed": elapsed,
+    })
+
+    # ------------------------------------------------------------------
+    # Phase 3: Strategy Consultant — write the report (streamed)
+    # ------------------------------------------------------------------
+    state.update_agent(sc.name, "working")
+    yield _sse({
+        "type": "agent_start",
+        "agent": sc.name,
+        "display_name": sc.display_name,
+        "model": sc.model,
+    })
+    monitor.log_event(
+        session_id, "agent_start",
+        agent_name=sc.display_name,
+        data={"model": sc.model},
+    )
+
+    report_chunks: list[str] = []
+    try:
+        t0 = time.time()
+        # Orchestrator routing: SC receives question + plan + research
+        for token in sc.run(question, plan_data, research_data):
+            report_chunks.append(token)
+            yield _sse({"type": "token", "content": token})
+        elapsed = round(time.time() - t0, 2)
+    except Exception as exc:
+        state.update_agent(sc.name, "error", error=str(exc))
+        state.fail_pipeline(str(exc))
+        monitor.log_event(
+            session_id, "agent_error",
+            agent_name=sc.display_name,
+            data={"error": str(exc)},
+        )
+        yield _sse({"type": "error", "agent": sc.name, "error": str(exc)})
+        return
+
+    full_report = strip_think_tags("".join(report_chunks))
+    state.update_agent(sc.name, "done", elapsed=elapsed)
+    monitor.log_event(
+        session_id, "agent_complete",
+        agent_name=sc.display_name,
+        data={"elapsed": elapsed, "output_length": len(full_report)},
+    )
+    yield _sse({
+        "type": "agent_complete",
+        "agent": sc.name,
+        "elapsed": elapsed,
+    })
+
+    # ------------------------------------------------------------------
+    # Phase 4: Evaluator — score the report
+    # ------------------------------------------------------------------
+    state.update_agent(ev.name, "working")
+    yield _sse({
+        "type": "agent_start",
+        "agent": ev.name,
+        "display_name": ev.display_name,
+        "model": ev.model,
+    })
+    monitor.log_event(
+        session_id, "agent_start",
+        agent_name=ev.display_name,
+        data={"model": ev.model},
+    )
+
+    try:
+        t0 = time.time()
+        # Orchestrator routing: Evaluator receives only question + report
+        eval_data = None
+        last_err = None
+        for attempt in range(MAX_RETRIES):
+            try:
+                eval_data = ev.run(question, full_report)
+                break
+            except (ValueError, Exception) as e:
+                last_err = e
+                if attempt < MAX_RETRIES - 1:
+                    continue
+        if eval_data is None:
+            raise last_err
+        elapsed = round(time.time() - t0, 2)
+    except Exception as exc:
+        state.update_agent(ev.name, "error", error=str(exc))
+        state.fail_pipeline(str(exc))
+        monitor.log_event(
+            session_id, "agent_error",
+            agent_name=ev.display_name,
+            data={"error": str(exc)},
+        )
+        yield _sse({"type": "error", "agent": ev.name, "error": str(exc)})
+        return
+
+    state.update_agent(ev.name, "done", elapsed=elapsed, output=eval_data)
+    monitor.log_event(
+        session_id, "agent_complete",
+        agent_name=ev.display_name,
+        data={"elapsed": elapsed},
+    )
+    yield _sse({
+        "type": "agent_output",
+        "agent": ev.name,
+        "output": eval_data,
+        "elapsed": elapsed,
+    })
+
+    # ------------------------------------------------------------------
+    # Pipeline complete
+    # ------------------------------------------------------------------
+    state.finish_pipeline()
+    monitor.log_event(session_id, "session_complete")
+    yield _sse({"type": "done", "session_id": session_id})
