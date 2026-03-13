@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monitoring Dashboard — Level 3</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0a0c10;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* -- Header -- */
+    .dash-header {
+      background: #111827;
+      border-bottom: 1px solid #1f2937;
+      padding: 0.8rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .dash-header h1 { font-size: 1.05rem; font-weight: 700; color: #f8fafc; }
+    .dash-header h1 span { color: #a78bfa; }
+    .header-right { display: flex; align-items: center; gap: 1rem; }
+    .ws-indicator { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #64748b; }
+    .ws-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; transition: background 0.3s; }
+    .ws-dot.connected { background: #22c55e; }
+    .pipeline-badge {
+      display: inline-block; font-size: 0.72rem; font-weight: 600;
+      padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .pipeline-badge.idle     { background: #1f2937; color: #64748b; }
+    .pipeline-badge.running  { background: #1e3a5f; color: #7dd3fc; animation: pulse 1.5s infinite; }
+    .pipeline-badge.done     { background: #14532d; color: #4ade80; }
+    .pipeline-badge.error    { background: #7f1d1d; color: #fca5a5; }
+
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+    /* -- Layout -- */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      grid-template-rows: auto 1fr;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      min-height: calc(100vh - 56px);
+    }
+
+    /* -- Pipeline Visualization -- */
+    .pipeline-viz {
+      grid-column: 1 / -1;
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      padding: 1.2rem 1.5rem;
+    }
+    .pipeline-viz h2 {
+      font-size: 0.78rem; color: #64748b; text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 1rem;
+    }
+    .pipeline-flow {
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; flex-wrap: wrap;
+    }
+    .agent-node {
+      background: #1f2937; border: 2px solid #374151; border-radius: 12px;
+      padding: 0.7rem 0.9rem; min-width: 130px; text-align: center;
+      position: relative; transition: all 0.4s ease;
+    }
+    .agent-node.idle    { border-color: #374151; }
+    .agent-node.working { border-color: #3b82f6; box-shadow: 0 0 16px rgba(59,130,246,0.25); }
+    .agent-node.done    { border-color: #22c55e; box-shadow: 0 0 12px rgba(34,197,94,0.15); }
+    .agent-node.error   { border-color: #ef4444; box-shadow: 0 0 12px rgba(239,68,68,0.2); }
+    .agent-icon { font-size: 1.3rem; margin-bottom: 0.2rem; }
+    .agent-name { font-size: 0.75rem; font-weight: 600; color: #f8fafc; }
+    .agent-model { font-size: 0.62rem; color: #64748b; margin-top: 0.1rem; }
+    .agent-status-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 600;
+      padding: 0.1rem 0.4rem; border-radius: 999px; margin-top: 0.3rem;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .agent-status-badge.idle    { background: #1f2937; color: #64748b; }
+    .agent-status-badge.working { background: #1e3a5f; color: #7dd3fc; animation: pulse 1.5s infinite; }
+    .agent-status-badge.done    { background: #14532d; color: #4ade80; }
+    .agent-status-badge.error   { background: #7f1d1d; color: #fca5a5; }
+    .agent-elapsed { font-size: 0.6rem; color: #94a3b8; margin-top: 0.15rem; }
+
+    .flow-arrow {
+      display: flex; align-items: center; padding: 0 0.15rem;
+      color: #374151; font-size: 1.2rem; transition: color 0.4s;
+    }
+    .flow-arrow.active { color: #3b82f6; }
+    .flow-arrow.done   { color: #22c55e; }
+    .flow-arrow svg { width: 30px; height: 20px; }
+
+    /* -- Activity Log -- */
+    .activity-log {
+      background: #111827; border: 1px solid #1f2937; border-radius: 12px;
+      padding: 1rem; overflow: hidden; display: flex; flex-direction: column;
+    }
+    .activity-log h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+    .log-scroll { flex: 1; overflow-y: auto; max-height: 420px; }
+    .log-entry {
+      display: flex; gap: 0.5rem; align-items: flex-start;
+      padding: 0.35rem 0; border-bottom: 1px solid #1f2937;
+      font-size: 0.75rem; animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    .log-time { color: #475569; white-space: nowrap; min-width: 55px; font-variant-numeric: tabular-nums; }
+    .log-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+    .log-dot.pipeline_start, .log-dot.pipeline_done { background: #a78bfa; }
+    .log-dot.pipeline_error { background: #ef4444; }
+    .log-dot.agent_working  { background: #3b82f6; }
+    .log-dot.agent_done     { background: #22c55e; }
+    .log-dot.agent_error    { background: #ef4444; }
+    .log-msg { color: #cbd5e1; flex: 1; }
+
+    /* -- Metrics Panel -- */
+    .metrics-panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 1rem; }
+    .metrics-panel h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+    .metric-card { background: #1f2937; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
+    .metric-card .label { font-size: 0.7rem; color: #64748b; margin-bottom: 0.15rem; }
+    .metric-card .value { font-size: 1.1rem; font-weight: 700; color: #f8fafc; }
+    .metric-card .value.running { color: #7dd3fc; }
+    .metric-card .value.done { color: #4ade80; }
+    .agent-times { margin-top: 0.8rem; }
+    .agent-time-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.3rem 0; border-bottom: 1px solid #1f293744; font-size: 0.72rem;
+    }
+    .agent-time-row .name { color: #cbd5e1; min-width: 90px; }
+    .agent-time-row .time-val { color: #94a3b8; font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
+    .agent-time-row .bar-bg { flex: 1; background: #0f1117; border-radius: 3px; height: 5px; margin: 0 0.5rem; overflow: hidden; }
+    .agent-time-row .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+    /* -- Question preview -- */
+    .question-preview { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 1rem; }
+    .question-preview h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .question-preview p { font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; font-style: italic; }
+    .question-preview .empty { color: #475569; font-style: normal; }
+
+    @media (max-width: 900px) {
+      .dash-grid { grid-template-columns: 1fr; }
+      .pipeline-flow { flex-direction: column; }
+      .flow-arrow svg { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="dash-header">
+  <h1>Monitoring Dashboard <span style="font-size:0.75rem;color:#64748b;font-weight:400;margin-left:0.5rem">Level 3</span></h1>
+  <div class="header-right">
+    <span class="pipeline-badge idle" id="pipeline-badge">Idle</span>
+    <div class="ws-indicator">
+      <div class="ws-dot" id="ws-dot"></div>
+      <span id="ws-label">Disconnected</span>
+    </div>
+  </div>
+</div>
+
+<div class="dash-grid">
+  <!-- Pipeline Visualization -->
+  <div class="pipeline-viz">
+    <h2>Agent Pipeline</h2>
+    <div class="pipeline-flow" id="pipeline-flow"></div>
+  </div>
+
+  <!-- Left column: Metrics + Question -->
+  <div style="display:flex;flex-direction:column;gap:1rem;">
+    <div class="question-preview" id="question-box">
+      <h2>Client Question</h2>
+      <p class="empty">Waiting for analysis…</p>
+    </div>
+    <div class="metrics-panel">
+      <h2>Performance Metrics</h2>
+      <div class="metric-card">
+        <div class="label">Session ID</div>
+        <div class="value" id="metric-session">—</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Pipeline Status</div>
+        <div class="value" id="metric-status">Idle</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Total Elapsed</div>
+        <div class="value" id="metric-elapsed">—</div>
+      </div>
+      <div class="agent-times" id="agent-times"></div>
+    </div>
+  </div>
+
+  <!-- Right column: Activity Log -->
+  <div class="activity-log">
+    <h2>Activity Log</h2>
+    <div class="log-scroll" id="log-scroll">
+      <div class="log-entry">
+        <span class="log-time">—</span>
+        <span class="log-dot" style="background:#475569"></span>
+        <span class="log-msg" style="color:#475569">Waiting for events…</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = "http://localhost:8000";
+const WS_URL = "ws://localhost:8000/ws";
+
+const AGENTS = [
+  { key: "engagement_manager",  icon: "EM", label: "Engagement Manager",  color: "#a78bfa" },
+  { key: "market_researcher",   icon: "MR", label: "Market Researcher",   color: "#38bdf8" },
+  { key: "financial_analyst",   icon: "FA", label: "Financial Analyst",   color: "#f59e0b" },
+  { key: "risk_analyst",        icon: "RA", label: "Risk Analyst",        color: "#f87171" },
+  { key: "strategy_consultant", icon: "SC", label: "Strategy Consultant", color: "#e879f9" },
+];
+
+let ws = null;
+let reconnectTimer = null;
+let pollTimer = null;
+let lastRenderTime = 0;
+
+// -- Build static pipeline flow --
+function buildPipelineFlow() {
+  const container = document.getElementById("pipeline-flow");
+  container.innerHTML = "";
+  AGENTS.forEach((a, i) => {
+    const node = document.createElement("div");
+    node.className = "agent-node idle";
+    node.id = `node-${a.key}`;
+    node.innerHTML = `
+      <div class="agent-icon">${a.icon}</div>
+      <div class="agent-name">${a.label}</div>
+      <div class="agent-model" id="model-${a.key}">—</div>
+      <div class="agent-status-badge idle" id="status-${a.key}">Idle</div>
+      <div class="agent-elapsed" id="elapsed-${a.key}"></div>
+    `;
+    container.appendChild(node);
+    if (i < AGENTS.length - 1) {
+      const arrow = document.createElement("div");
+      arrow.className = "flow-arrow";
+      arrow.id = `arrow-${i}`;
+      arrow.innerHTML = `<svg viewBox="0 0 40 24"><path d="M4 12h28m0 0l-7-6m7 6l-7 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      container.appendChild(arrow);
+    }
+  });
+}
+buildPipelineFlow();
+
+// -- Build agent time rows --
+function buildAgentTimes() {
+  const container = document.getElementById("agent-times");
+  container.innerHTML = "";
+  for (const a of AGENTS) {
+    const row = document.createElement("div");
+    row.className = "agent-time-row";
+    row.id = `time-row-${a.key}`;
+    row.innerHTML = `
+      <span class="name">${a.icon} ${a.label}</span>
+      <div class="bar-bg"><div class="bar-fill" id="time-bar-${a.key}" style="width:0;background:${a.color}"></div></div>
+      <span class="time-val" id="time-val-${a.key}">—</span>
+    `;
+    container.appendChild(row);
+  }
+}
+buildAgentTimes();
+
+// -- Render full state --
+function renderState(data) {
+  lastRenderTime = Date.now();
+
+  if (data.status === "running" && !pollTimer) {
+    pollTimer = setInterval(pollStatus, 2000);
+  } else if (data.status !== "running" && pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  const badge = document.getElementById("pipeline-badge");
+  badge.className = `pipeline-badge ${data.status}`;
+  badge.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+
+  document.getElementById("metric-session").textContent = data.session_id ? data.session_id.slice(0, 12) + "…" : "—";
+  const mStatus = document.getElementById("metric-status");
+  mStatus.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+  mStatus.className = `value ${data.status}`;
+
+  if (data.elapsed != null) {
+    document.getElementById("metric-elapsed").textContent = formatElapsed(data.elapsed);
+  }
+
+  const qBox = document.getElementById("question-box");
+  if (data.question) {
+    qBox.innerHTML = `<h2>Client Question</h2><p>${escapeHtml(data.question)}</p>`;
+  }
+
+  let maxElapsed = 0;
+  const agentEntries = AGENTS.map(a => {
+    const agentData = data.agents?.[a.key];
+    if (agentData?.elapsed) maxElapsed = Math.max(maxElapsed, agentData.elapsed);
+    return { cfg: a, data: agentData };
+  });
+
+  let prevDone = true;
+  agentEntries.forEach(({ cfg, data: ad }, i) => {
+    const node = document.getElementById(`node-${cfg.key}`);
+    const statusBadge = document.getElementById(`status-${cfg.key}`);
+    const modelEl = document.getElementById(`model-${cfg.key}`);
+    const elapsedEl = document.getElementById(`elapsed-${cfg.key}`);
+    const status = ad?.status || "idle";
+
+    node.className = `agent-node ${status}`;
+    statusBadge.className = `agent-status-badge ${status}`;
+    statusBadge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    if (ad?.model) modelEl.textContent = ad.model;
+    if (ad?.elapsed) elapsedEl.textContent = `${ad.elapsed.toFixed(1)}s`;
+    else elapsedEl.textContent = "";
+
+    if (i > 0) {
+      const arrow = document.getElementById(`arrow-${i - 1}`);
+      if (arrow) {
+        if (status === "working" || status === "done") arrow.className = "flow-arrow active";
+        if (status === "done" || (prevDone && status !== "working")) {
+          const prevStatus = agentEntries[i-1]?.data?.status;
+          if (prevStatus === "done") arrow.className = "flow-arrow done";
+        }
+      }
+    }
+    prevDone = status === "done";
+
+    const barFill = document.getElementById(`time-bar-${cfg.key}`);
+    const timeVal = document.getElementById(`time-val-${cfg.key}`);
+    if (ad?.elapsed && maxElapsed > 0) {
+      barFill.style.width = `${(ad.elapsed / maxElapsed) * 100}%`;
+      timeVal.textContent = `${ad.elapsed.toFixed(1)}s`;
+    } else {
+      barFill.style.width = "0";
+      timeVal.textContent = status === "working" ? "…" : "—";
+    }
+  });
+
+  renderLog(data.activity_log || []);
+}
+
+function renderLog(entries) {
+  const container = document.getElementById("log-scroll");
+  container.innerHTML = "";
+  for (const entry of entries) {
+    const el = document.createElement("div");
+    el.className = "log-entry";
+    const t = new Date(entry.timestamp * 1000);
+    const timeStr = t.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    el.innerHTML = `
+      <span class="log-time">${timeStr}</span>
+      <span class="log-dot ${entry.type}"></span>
+      <span class="log-msg">${escapeHtml(entry.message)}</span>
+    `;
+    container.appendChild(el);
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
+function formatElapsed(sec) {
+  if (sec == null) return "—";
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60).toString().padStart(2, "0");
+  return m > 0 ? `${m}m ${s}s` : `${sec.toFixed(1)}s`;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement("div");
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// -- WebSocket --
+function connect() {
+  if (ws && ws.readyState <= 1) return;
+  ws = new WebSocket(WS_URL);
+  ws.onopen = () => {
+    document.getElementById("ws-dot").classList.add("connected");
+    document.getElementById("ws-label").textContent = "Connected";
+    if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
+  };
+  ws.onmessage = (e) => {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === "state" && msg.data) renderState(msg.data);
+    } catch {}
+  };
+  ws.onclose = () => {
+    document.getElementById("ws-dot").classList.remove("connected");
+    document.getElementById("ws-label").textContent = "Reconnecting…";
+    scheduleReconnect();
+  };
+  ws.onerror = () => { ws.close(); };
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = setInterval(() => { connect(); }, 3000);
+}
+
+async function pollStatus() {
+  try {
+    const res = await fetch(`${API}/status`);
+    if (res.ok) { const data = await res.json(); renderState(data); }
+  } catch {}
+}
+
+async function init() {
+  await pollStatus();
+  connect();
+  pollTimer = setInterval(pollStatus, 2000);
+}
+
+init();
+</script>
+</body>
+</html>
