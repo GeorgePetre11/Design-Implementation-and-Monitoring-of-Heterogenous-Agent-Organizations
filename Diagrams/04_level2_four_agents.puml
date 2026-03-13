@@ -1,4 +1,4 @@
-@startuml level3_four_agents
+@startuml level2_four_agents
 !theme plain
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontName "Segoe UI"
@@ -6,7 +6,7 @@ skinparam defaultFontSize 12
 skinparam shadowing false
 skinparam roundCorner 10
 
-title **Level 3 — Four Agents (Core Roles)**
+title **Level 2 — Four Agents (Core Roles)**
 
 |Client|
 start
@@ -39,7 +39,7 @@ note right
 end note
 
 |#FFF3E0|Evaluator|
-:Score report on rubric\n(completeness, accuracy,\ncoherence, structure);
+:Score report on rubric\n(completeness, accuracy, coherence,\nstructure, actionability, critical depth);
 :Produce evaluation scorecard;
 
 |Client|

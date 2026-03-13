@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Consulting Firm — Level 2</title>
+  <title>AI Consulting Firm — Level 3</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -68,7 +68,7 @@
     }
     .metric span { color: #f8fafc; font-weight: 600; margin-left: 0.3rem; }
 
-    /* ── Collapsible agent output ── */
+    /* -- Collapsible agent output -- */
     .agent-output-section { width: 100%; max-width: 900px; margin-top: 1rem; display: none; }
     .agent-output-header {
       display: flex; align-items: center; justify-content: space-between;
@@ -98,7 +98,13 @@
       padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; color: #94a3b8; margin-right: 0.3rem;
     }
 
-    /* ── Report ── */
+    /* -- Risk colors -- */
+    .risk-high { color: #f87171; }
+    .risk-medium { color: #fbbf24; }
+    .risk-low { color: #4ade80; }
+    .risk-critical { color: #ef4444; font-weight: 700; }
+
+    /* -- Report -- */
     #report-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
     .toolbar { display: flex; align-items: center; margin-bottom: 0.5rem; }
     .toolbar h2 { font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
@@ -121,22 +127,7 @@
     #report-output em { color: #94a3b8; }
     #report-output hr { border: none; border-top: 1px solid #334155; margin: 1rem 0; }
 
-    /* ── Evaluation ── */
-    #eval-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
-    #eval-section h2 { font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
-    .eval-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-    .eval-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 0.7rem 1rem; }
-    .eval-card .criterion-name { font-size: 0.78rem; font-weight: 600; color: #f8fafc; text-transform: capitalize; margin-bottom: 0.35rem; }
-    .eval-card .score-bar-bg { background: #0f1117; border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 0.3rem; }
-    .eval-card .score-bar { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
-    .eval-card .score-value { font-size: 0.85rem; font-weight: 700; float: right; margin-top: -1.4rem; }
-    .eval-card .justification { font-size: 0.72rem; color: #94a3b8; line-height: 1.4; }
-    .eval-overall { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 1rem 1.2rem; margin-top: 0.6rem; text-align: center; }
-    .eval-overall .overall-label { font-size: 0.8rem; color: #94a3b8; }
-    .eval-overall .overall-score { font-size: 2rem; font-weight: 800; color: #f8fafc; margin: 0.3rem 0; }
-    .eval-overall .overall-summary { font-size: 0.82rem; color: #cbd5e1; line-height: 1.5; max-width: 600px; margin: 0 auto; }
-
-    @media (max-width: 700px) { .eval-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 700px) { body { padding: 1rem 0.5rem; } }
   </style>
 </head>
 <body>
@@ -145,7 +136,7 @@
   <h1>AI Consulting Firm</h1>
   <p>Heterogeneous Agent Organizations — Thesis Project</p>
   <div class="badges">
-    <span class="badge">Level 2 · Four Agents · Sequential Pipeline</span>
+    <span class="badge">Level 3 · Six Agents · Full Specialization</span>
     <a class="badge dashboard-link" href="/dashboard.html" target="_blank">Monitoring Dashboard</a>
   </div>
 </header>
@@ -166,6 +157,7 @@
   <div class="metric">Report tokens <span id="m-tokens">0</span></div>
 </div>
 
+<!-- Agent output sections -->
 <div class="agent-output-section" id="section-engagement_manager">
   <div class="agent-output-header" onclick="toggleSection('engagement_manager')">
     <h3>Analysis Plan</h3>
@@ -184,6 +176,24 @@
   <div class="agent-output-content" id="content-market_researcher"></div>
 </div>
 
+<div class="agent-output-section" id="section-financial_analyst">
+  <div class="agent-output-header" onclick="toggleSection('financial_analyst')">
+    <h3>Financial Analysis</h3>
+    <span class="elapsed-badge" id="badge-financial_analyst"></span>
+    <span class="toggle" id="toggle-financial_analyst">▼</span>
+  </div>
+  <div class="agent-output-content" id="content-financial_analyst"></div>
+</div>
+
+<div class="agent-output-section" id="section-risk_analyst">
+  <div class="agent-output-header" onclick="toggleSection('risk_analyst')">
+    <h3>Risk Assessment</h3>
+    <span class="elapsed-badge" id="badge-risk_analyst"></span>
+    <span class="toggle" id="toggle-risk_analyst">▼</span>
+  </div>
+  <div class="agent-output-content" id="content-risk_analyst"></div>
+</div>
+
 <div id="report-section">
   <div class="toolbar">
     <h2>Consulting Report</h2>
@@ -191,12 +201,6 @@
     <button class="copy-btn" onclick="downloadPDF()">Download PDF</button>
   </div>
   <div id="report-output"></div>
-</div>
-
-<div id="eval-section">
-  <h2>Evaluation Scorecard</h2>
-  <div class="eval-grid" id="eval-grid"></div>
-  <div class="eval-overall" id="eval-overall" style="display:none"></div>
 </div>
 
 <script>
@@ -236,6 +240,12 @@ function renderMarkdown(text) {
 function scoreColor(s) {
   if (s >= 8) return "#22c55e"; if (s >= 6) return "#eab308"; if (s >= 4) return "#f97316"; return "#ef4444";
 }
+function riskColor(level) {
+  if (level === "critical") return "#ef4444";
+  if (level === "high") return "#f87171";
+  if (level === "medium") return "#fbbf24";
+  return "#4ade80";
+}
 
 function renderAnalysisPlan(data) {
   const plan = data.analysis_plan || data;
@@ -250,6 +260,7 @@ function renderAnalysisPlan(data) {
   }
   return h;
 }
+
 function renderMarketResearch(data) {
   const ma = data.market_analysis || data;
   let h = "";
@@ -267,20 +278,57 @@ function renderMarketResearch(data) {
   if (ma.key_findings?.length) { h += `<h4>Key Findings</h4><ul>`; for (const f of ma.key_findings) h += `<li>${f}</li>`; h += `</ul>`; }
   return h;
 }
-function renderEvaluation(data) {
-  const ev = data.evaluation || data;
-  const scores = ev.scores || {};
-  const grid = document.getElementById("eval-grid");
-  grid.innerHTML = "";
-  for (const c of ["completeness","accuracy","coherence","structure","actionability","critical_depth"]) {
-    const item = scores[c] || { score: 0, justification: "N/A" };
-    const pct = (item.score / 10) * 100, color = scoreColor(item.score);
-    grid.innerHTML += `<div class="eval-card"><div class="criterion-name">${c.replace("_"," ")} <span class="score-value" style="color:${color}">${item.score}/10</span></div><div class="score-bar-bg"><div class="score-bar" style="width:${pct}%;background:${color}"></div></div><div class="justification">${item.justification}</div></div>`;
+
+function renderFinancialAnalysis(data) {
+  const fa = data.financial_analysis || data;
+  let h = "";
+  if (fa.executive_summary) h += `<h4>Executive Summary</h4><p>${fa.executive_summary}</p>`;
+  if (fa.cost_estimates?.length) {
+    h += `<h4>Cost Estimates</h4>`;
+    for (const c of fa.cost_estimates) {
+      h += `<div style="margin-bottom:0.4rem"><strong>${c.category}</strong> <span class="tag">${c.amount}</span> <span class="tag">${c.timeframe}</span><br><span style="color:#94a3b8">${c.notes}</span></div>`;
+    }
   }
-  const o = document.getElementById("eval-overall"), overall = ev.overall_score || 0;
-  o.style.display = "block";
-  o.innerHTML = `<div class="overall-label">Overall Score</div><div class="overall-score" style="color:${scoreColor(overall)}">${overall}/10</div><div class="overall-summary">${ev.summary || ""}</div>`;
+  if (fa.revenue_projections?.length) {
+    h += `<h4>Revenue Projections</h4>`;
+    for (const r of fa.revenue_projections) {
+      h += `<div style="margin-bottom:0.4rem"><strong>${r.scenario}</strong><br>`;
+      h += `Y1: <span class="tag">${r.year_1}</span> Y2: <span class="tag">${r.year_2}</span> Y3: <span class="tag">${r.year_3}</span><br>`;
+      h += `<span style="color:#94a3b8">${r.assumptions}</span></div>`;
+    }
+  }
+  if (fa.roi_analysis) h += `<h4>ROI Analysis</h4><p>${fa.roi_analysis}</p>`;
+  if (fa.break_even_timeline) h += `<h4>Break-Even Timeline</h4><p>${fa.break_even_timeline}</p>`;
+  if (fa.sensitivity_analysis) h += `<h4>Sensitivity Analysis</h4><p>${fa.sensitivity_analysis}</p>`;
+  if (fa.key_financial_risks?.length) { h += `<h4>Key Financial Risks</h4><ul>`; for (const r of fa.key_financial_risks) h += `<li>${r}</li>`; h += `</ul>`; }
+  return h;
 }
+
+function renderRiskAssessment(data) {
+  const ra = data.risk_assessment || data;
+  let h = "";
+  if (ra.overall_risk_level) {
+    h += `<h4>Overall Risk Level</h4><p style="color:${riskColor(ra.overall_risk_level)};font-weight:700;text-transform:uppercase">${ra.overall_risk_level}</p>`;
+  }
+  if (ra.risk_summary) h += `<h4>Risk Summary</h4><p>${ra.risk_summary}</p>`;
+  if (ra.risks?.length) {
+    h += `<h4>Identified Risks (${ra.risks.length})</h4>`;
+    for (const r of ra.risks) {
+      const pColor = riskColor(r.probability === "high" ? "high" : r.probability === "medium" ? "medium" : "low");
+      const iColor = riskColor(r.impact === "high" ? "high" : r.impact === "medium" ? "medium" : "low");
+      h += `<div style="margin-bottom:0.6rem;padding:0.5rem;background:#1e293b;border-radius:6px">`;
+      h += `<strong>${r.id || ""}. ${r.title}</strong> <span class="tag">${r.category}</span><br>`;
+      h += `<span style="color:#94a3b8">${r.description}</span><br>`;
+      h += `Probability: <span style="color:${pColor}">${r.probability}</span> · Impact: <span style="color:${iColor}">${r.impact}</span><br>`;
+      if (r.mitigation_suggestion) h += `<span style="color:#7dd3fc;font-size:0.75rem">Mitigation: ${r.mitigation_suggestion}</span>`;
+      h += `</div>`;
+    }
+  }
+  if (ra.key_risk_factors?.length) { h += `<h4>Key Risk Factors</h4><ul>`; for (const f of ra.key_risk_factors) h += `<li>${f}</li>`; h += `</ul>`; }
+  return h;
+}
+
+const AGENT_SECTIONS = ["engagement_manager", "market_researcher", "financial_analyst", "risk_analyst"];
 
 async function startAnalysis() {
   const question = document.getElementById("question").value.trim();
@@ -290,11 +338,11 @@ async function startAnalysis() {
   document.getElementById("m-elapsed").textContent = "—";
   document.getElementById("m-session").textContent = "—";
   document.getElementById("report-output").innerHTML = "";
-  document.getElementById("eval-grid").innerHTML = "";
-  document.getElementById("eval-overall").style.display = "none";
-  ["section-engagement_manager","section-market_researcher"].forEach(id => document.getElementById(id).style.display = "none");
+  AGENT_SECTIONS.forEach(id => {
+    document.getElementById("section-" + id).style.display = "none";
+    document.getElementById("content-" + id).innerHTML = "";
+  });
   document.getElementById("report-section").style.display = "none";
-  document.getElementById("eval-section").style.display = "none";
   document.getElementById("submit-btn").disabled = true;
   setStatus("Starting pipeline…", "running");
   startTime = Date.now();
@@ -342,10 +390,30 @@ function handleEvent(msg) {
         document.getElementById("content-market_researcher").innerHTML = renderMarketResearch(msg.output);
         document.getElementById("content-market_researcher").classList.add("open");
         document.getElementById("toggle-market_researcher").classList.add("open");
+        // collapse previous
         document.getElementById("content-engagement_manager").classList.remove("open");
         document.getElementById("toggle-engagement_manager").classList.remove("open");
       }
-      if (msg.agent === "evaluator") { document.getElementById("eval-section").style.display = "block"; renderEvaluation(msg.output); }
+      if (msg.agent === "financial_analyst") {
+        document.getElementById("section-financial_analyst").style.display = "block";
+        document.getElementById("badge-financial_analyst").textContent = msg.elapsed + "s";
+        document.getElementById("content-financial_analyst").innerHTML = renderFinancialAnalysis(msg.output);
+        document.getElementById("content-financial_analyst").classList.add("open");
+        document.getElementById("toggle-financial_analyst").classList.add("open");
+        // collapse previous
+        document.getElementById("content-market_researcher").classList.remove("open");
+        document.getElementById("toggle-market_researcher").classList.remove("open");
+      }
+      if (msg.agent === "risk_analyst") {
+        document.getElementById("section-risk_analyst").style.display = "block";
+        document.getElementById("badge-risk_analyst").textContent = msg.elapsed + "s";
+        document.getElementById("content-risk_analyst").innerHTML = renderRiskAssessment(msg.output);
+        document.getElementById("content-risk_analyst").classList.add("open");
+        document.getElementById("toggle-risk_analyst").classList.add("open");
+        // collapse previous
+        document.getElementById("content-financial_analyst").classList.remove("open");
+        document.getElementById("toggle-financial_analyst").classList.remove("open");
+      }
       break;
     case "token":
       reportRaw += msg.content; tokenCount++;
@@ -398,23 +466,24 @@ function downloadPDF() {
   <div class="pdf-header">
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect width="48" height="48" rx="10" fill="#1e293b"/>
-      <circle cx="24" cy="16" r="4" fill="#38bdf8"/>
-      <circle cx="14" cy="30" r="4" fill="#a78bfa"/>
-      <circle cx="34" cy="30" r="4" fill="#4ade80"/>
-      <line x1="24" y1="20" x2="14" y2="26" stroke="#475569" stroke-width="1.5"/>
-      <line x1="24" y1="20" x2="34" y2="26" stroke="#475569" stroke-width="1.5"/>
-      <line x1="14" y1="34" x2="34" y2="34" stroke="#475569" stroke-width="1.5"/>
-      <circle cx="24" cy="16" r="2" fill="#fff"/>
-      <circle cx="14" cy="30" r="2" fill="#fff"/>
-      <circle cx="34" cy="30" r="2" fill="#fff"/>
+      <circle cx="24" cy="10" r="3.5" fill="#38bdf8"/>
+      <circle cx="10" cy="22" r="3.5" fill="#a78bfa"/>
+      <circle cx="38" cy="22" r="3.5" fill="#4ade80"/>
+      <circle cx="10" cy="36" r="3.5" fill="#f59e0b"/>
+      <circle cx="24" cy="36" r="3.5" fill="#f87171"/>
+      <circle cx="38" cy="36" r="3.5" fill="#e879f9"/>
+      <line x1="24" y1="14" x2="10" y2="18" stroke="#475569" stroke-width="1"/>
+      <line x1="24" y1="14" x2="38" y2="18" stroke="#475569" stroke-width="1"/>
+      <line x1="10" y1="26" x2="24" y2="32" stroke="#475569" stroke-width="1"/>
+      <line x1="38" y1="26" x2="24" y2="32" stroke="#475569" stroke-width="1"/>
     </svg>
     <div class="pdf-header-text">
       <span class="firm-name">AI Consulting Firm</span>
-      <span class="firm-tagline">Heterogeneous Agent Organizations</span>
+      <span class="firm-tagline">Heterogeneous Agent Organizations — Level 3</span>
     </div>
   </div>
   <div class="meta">
-    <strong>Level 2 — Four-Agent Pipeline Analysis</strong><br/>
+    <strong>Level 3 — Six-Agent Full Specialization Analysis</strong><br/>
     <strong>Question:</strong> ${q}<br/>
     <strong>Generated:</strong> ${new Date().toLocaleString()}
   </div>

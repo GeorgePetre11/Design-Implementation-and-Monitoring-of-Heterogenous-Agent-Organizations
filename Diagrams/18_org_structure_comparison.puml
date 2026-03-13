@@ -6,7 +6,7 @@ skinparam defaultFontSize 10
 skinparam shadowing false
 skinparam roundCorner 8
 
-title **Level 5 — Organizational Structure Comparison**
+title **Level 4 — Organizational Structure Comparison**
 
 skinparam rectangle {
   FontColor #1A1A1A

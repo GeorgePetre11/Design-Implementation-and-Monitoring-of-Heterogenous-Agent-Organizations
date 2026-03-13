@@ -1,4 +1,4 @@
-@startuml level4_six_agents
+@startuml level3_six_agents
 !theme plain
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontName "Segoe UI"
@@ -7,7 +7,7 @@ skinparam shadowing false
 skinparam roundCorner 10
 skinparam componentStyle rectangle
 
-title **Level 4 — Six Agents (Full Specialization)**
+title **Level 3 — Six Agents (Full Specialization)**
 
 skinparam component {
   FontColor #1A1A1A

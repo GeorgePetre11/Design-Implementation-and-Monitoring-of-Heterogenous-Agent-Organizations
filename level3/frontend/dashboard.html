@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Monitoring Dashboard — Level 2</title>
+  <title>Monitoring Dashboard — Level 3</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,7 +14,7 @@
       min-height: 100vh;
     }
 
-    /* ── Header ── */
+    /* -- Header -- */
     .dash-header {
       background: #111827;
       border-bottom: 1px solid #1f2937;
@@ -26,52 +26,24 @@
       top: 0;
       z-index: 100;
     }
-    .dash-header h1 {
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: #f8fafc;
-    }
+    .dash-header h1 { font-size: 1.05rem; font-weight: 700; color: #f8fafc; }
     .dash-header h1 span { color: #a78bfa; }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-    .ws-indicator {
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      font-size: 0.75rem;
-      color: #64748b;
-    }
-    .ws-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #ef4444;
-      transition: background 0.3s;
-    }
+    .header-right { display: flex; align-items: center; gap: 1rem; }
+    .ws-indicator { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #64748b; }
+    .ws-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; transition: background 0.3s; }
     .ws-dot.connected { background: #22c55e; }
     .pipeline-badge {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 600;
-      padding: 0.2rem 0.6rem;
-      border-radius: 999px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      display: inline-block; font-size: 0.72rem; font-weight: 600;
+      padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em;
     }
     .pipeline-badge.idle     { background: #1f2937; color: #64748b; }
     .pipeline-badge.running  { background: #1e3a5f; color: #7dd3fc; animation: pulse 1.5s infinite; }
     .pipeline-badge.done     { background: #14532d; color: #4ade80; }
     .pipeline-badge.error    { background: #7f1d1d; color: #fca5a5; }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-    /* ── Layout ── */
+    /* -- Layout -- */
     .dash-grid {
       display: grid;
       grid-template-columns: 1fr 340px;
@@ -81,7 +53,7 @@
       min-height: calc(100vh - 56px);
     }
 
-    /* ── Pipeline Visualization ── */
+    /* -- Pipeline Visualization -- */
     .pipeline-viz {
       grid-column: 1 / -1;
       background: #111827;
@@ -90,107 +62,59 @@
       padding: 1.2rem 1.5rem;
     }
     .pipeline-viz h2 {
-      font-size: 0.78rem;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 1rem;
+      font-size: 0.78rem; color: #64748b; text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 1rem;
     }
     .pipeline-flow {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0;
-      flex-wrap: wrap;
+      display: flex; align-items: center; justify-content: center;
+      gap: 0; flex-wrap: wrap;
     }
     .agent-node {
-      background: #1f2937;
-      border: 2px solid #374151;
-      border-radius: 12px;
-      padding: 0.9rem 1.1rem;
-      min-width: 170px;
-      text-align: center;
-      position: relative;
-      transition: all 0.4s ease;
+      background: #1f2937; border: 2px solid #374151; border-radius: 12px;
+      padding: 0.7rem 0.9rem; min-width: 130px; text-align: center;
+      position: relative; transition: all 0.4s ease;
     }
     .agent-node.idle    { border-color: #374151; }
     .agent-node.working { border-color: #3b82f6; box-shadow: 0 0 16px rgba(59,130,246,0.25); }
     .agent-node.done    { border-color: #22c55e; box-shadow: 0 0 12px rgba(34,197,94,0.15); }
     .agent-node.error   { border-color: #ef4444; box-shadow: 0 0 12px rgba(239,68,68,0.2); }
-    .agent-icon { font-size: 1.6rem; margin-bottom: 0.3rem; }
-    .agent-name { font-size: 0.82rem; font-weight: 600; color: #f8fafc; }
-    .agent-model { font-size: 0.68rem; color: #64748b; margin-top: 0.15rem; }
+    .agent-icon { font-size: 1.3rem; margin-bottom: 0.2rem; }
+    .agent-name { font-size: 0.75rem; font-weight: 600; color: #f8fafc; }
+    .agent-model { font-size: 0.62rem; color: #64748b; margin-top: 0.1rem; }
     .agent-status-badge {
-      display: inline-block;
-      font-size: 0.65rem;
-      font-weight: 600;
-      padding: 0.1rem 0.45rem;
-      border-radius: 999px;
-      margin-top: 0.4rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+      display: inline-block; font-size: 0.6rem; font-weight: 600;
+      padding: 0.1rem 0.4rem; border-radius: 999px; margin-top: 0.3rem;
+      text-transform: uppercase; letter-spacing: 0.04em;
     }
     .agent-status-badge.idle    { background: #1f2937; color: #64748b; }
     .agent-status-badge.working { background: #1e3a5f; color: #7dd3fc; animation: pulse 1.5s infinite; }
     .agent-status-badge.done    { background: #14532d; color: #4ade80; }
     .agent-status-badge.error   { background: #7f1d1d; color: #fca5a5; }
-    .agent-elapsed {
-      font-size: 0.65rem;
-      color: #94a3b8;
-      margin-top: 0.2rem;
-    }
+    .agent-elapsed { font-size: 0.6rem; color: #94a3b8; margin-top: 0.15rem; }
 
     .flow-arrow {
-      display: flex;
-      align-items: center;
-      padding: 0 0.3rem;
-      color: #374151;
-      font-size: 1.5rem;
-      transition: color 0.4s;
+      display: flex; align-items: center; padding: 0 0.15rem;
+      color: #374151; font-size: 1.2rem; transition: color 0.4s;
     }
     .flow-arrow.active { color: #3b82f6; }
     .flow-arrow.done   { color: #22c55e; }
-    .flow-arrow svg { width: 40px; height: 24px; }
+    .flow-arrow svg { width: 30px; height: 20px; }
 
-    /* ── Activity Log ── */
+    /* -- Activity Log -- */
     .activity-log {
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 12px;
-      padding: 1rem;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
+      background: #111827; border: 1px solid #1f2937; border-radius: 12px;
+      padding: 1rem; overflow: hidden; display: flex; flex-direction: column;
     }
-    .activity-log h2 {
-      font-size: 0.78rem;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.7rem;
-    }
-    .log-scroll {
-      flex: 1;
-      overflow-y: auto;
-      max-height: 420px;
-    }
+    .activity-log h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+    .log-scroll { flex: 1; overflow-y: auto; max-height: 420px; }
     .log-entry {
-      display: flex;
-      gap: 0.5rem;
-      align-items: flex-start;
-      padding: 0.35rem 0;
-      border-bottom: 1px solid #1f2937;
-      font-size: 0.75rem;
-      animation: slideIn 0.3s ease;
+      display: flex; gap: 0.5rem; align-items: flex-start;
+      padding: 0.35rem 0; border-bottom: 1px solid #1f2937;
+      font-size: 0.75rem; animation: slideIn 0.3s ease;
     }
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(-6px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .log-time { color: #475569; white-space: nowrap; min-width: 55px; font-variant-numeric: tabular-nums; }
-    .log-dot {
-      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px;
-    }
+    .log-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
     .log-dot.pipeline_start, .log-dot.pipeline_done { background: #a78bfa; }
     .log-dot.pipeline_error { background: #ef4444; }
     .log-dot.agent_working  { background: #3b82f6; }
@@ -198,85 +122,33 @@
     .log-dot.agent_error    { background: #ef4444; }
     .log-msg { color: #cbd5e1; flex: 1; }
 
-    /* ── Metrics Panel ── */
-    .metrics-panel {
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 12px;
-      padding: 1rem;
-    }
-    .metrics-panel h2 {
-      font-size: 0.78rem;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.7rem;
-    }
-    .metric-card {
-      background: #1f2937;
-      border-radius: 8px;
-      padding: 0.6rem 0.8rem;
-      margin-bottom: 0.5rem;
-    }
+    /* -- Metrics Panel -- */
+    .metrics-panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 1rem; }
+    .metrics-panel h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+    .metric-card { background: #1f2937; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
     .metric-card .label { font-size: 0.7rem; color: #64748b; margin-bottom: 0.15rem; }
     .metric-card .value { font-size: 1.1rem; font-weight: 700; color: #f8fafc; }
     .metric-card .value.running { color: #7dd3fc; }
     .metric-card .value.done { color: #4ade80; }
-
     .agent-times { margin-top: 0.8rem; }
     .agent-time-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0.35rem 0;
-      border-bottom: 1px solid #1f293744;
-      font-size: 0.75rem;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.3rem 0; border-bottom: 1px solid #1f293744; font-size: 0.72rem;
     }
-    .agent-time-row .name { color: #cbd5e1; }
-    .agent-time-row .time-val { color: #94a3b8; font-variant-numeric: tabular-nums; }
-    .agent-time-row .bar-bg {
-      flex: 1;
-      background: #0f1117;
-      border-radius: 3px;
-      height: 5px;
-      margin: 0 0.6rem;
-      overflow: hidden;
-    }
-    .agent-time-row .bar-fill {
-      height: 100%;
-      border-radius: 3px;
-      transition: width 0.5s;
-    }
+    .agent-time-row .name { color: #cbd5e1; min-width: 90px; }
+    .agent-time-row .time-val { color: #94a3b8; font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
+    .agent-time-row .bar-bg { flex: 1; background: #0f1117; border-radius: 3px; height: 5px; margin: 0 0.5rem; overflow: hidden; }
+    .agent-time-row .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
 
-    /* ── Question preview ── */
-    .question-preview {
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 12px;
-      padding: 1rem;
-    }
-    .question-preview h2 {
-      font-size: 0.78rem;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 0.5rem;
-    }
-    .question-preview p {
-      font-size: 0.82rem;
-      color: #e2e8f0;
-      line-height: 1.5;
-      font-style: italic;
-    }
+    /* -- Question preview -- */
+    .question-preview { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 1rem; }
+    .question-preview h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .question-preview p { font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; font-style: italic; }
     .question-preview .empty { color: #475569; font-style: normal; }
 
-    @media (max-width: 800px) {
-      .dash-grid {
-        grid-template-columns: 1fr;
-      }
-      .pipeline-flow {
-        flex-direction: column;
-      }
+    @media (max-width: 900px) {
+      .dash-grid { grid-template-columns: 1fr; }
+      .pipeline-flow { flex-direction: column; }
       .flow-arrow svg { transform: rotate(90deg); }
     }
   </style>
@@ -284,7 +156,7 @@
 <body>
 
 <div class="dash-header">
-  <h1>Monitoring Dashboard <span style="font-size:0.75rem;color:#64748b;font-weight:400;margin-left:0.5rem">Level 2</span></h1>
+  <h1>Monitoring Dashboard <span style="font-size:0.75rem;color:#64748b;font-weight:400;margin-left:0.5rem">Level 3</span></h1>
   <div class="header-right">
     <span class="pipeline-badge idle" id="pipeline-badge">Idle</span>
     <div class="ws-indicator">
@@ -298,9 +170,7 @@
   <!-- Pipeline Visualization -->
   <div class="pipeline-viz">
     <h2>Agent Pipeline</h2>
-    <div class="pipeline-flow" id="pipeline-flow">
-      <!-- Filled by JS -->
-    </div>
+    <div class="pipeline-flow" id="pipeline-flow"></div>
   </div>
 
   <!-- Left column: Metrics + Question -->
@@ -323,9 +193,7 @@
         <div class="label">Total Elapsed</div>
         <div class="value" id="metric-elapsed">—</div>
       </div>
-      <div class="agent-times" id="agent-times">
-        <!-- Filled by JS -->
-      </div>
+      <div class="agent-times" id="agent-times"></div>
     </div>
   </div>
 
@@ -347,10 +215,11 @@ const API = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000/ws";
 
 const AGENTS = [
-  { key: "engagement_manager", icon: "EM", label: "Engagement Manager",  color: "#a78bfa" },
-  { key: "market_researcher",  icon: "MR", label: "Market Researcher",   color: "#38bdf8" },
-  { key: "strategy_consultant",icon: "SC", label: "Strategy Consultant", color: "#f59e0b" },
-  { key: "evaluator",          icon: "EV", label: "Evaluator",           color: "#4ade80" },
+  { key: "engagement_manager",  icon: "EM", label: "Engagement Manager",  color: "#a78bfa" },
+  { key: "market_researcher",   icon: "MR", label: "Market Researcher",   color: "#38bdf8" },
+  { key: "financial_analyst",   icon: "FA", label: "Financial Analyst",   color: "#f59e0b" },
+  { key: "risk_analyst",        icon: "RA", label: "Risk Analyst",        color: "#f87171" },
+  { key: "strategy_consultant", icon: "SC", label: "Strategy Consultant", color: "#e879f9" },
 ];
 
 let ws = null;
@@ -358,7 +227,7 @@ let reconnectTimer = null;
 let pollTimer = null;
 let lastRenderTime = 0;
 
-// ── Build static pipeline flow ──
+// -- Build static pipeline flow --
 function buildPipelineFlow() {
   const container = document.getElementById("pipeline-flow");
   container.innerHTML = "";
@@ -374,7 +243,6 @@ function buildPipelineFlow() {
       <div class="agent-elapsed" id="elapsed-${a.key}"></div>
     `;
     container.appendChild(node);
-
     if (i < AGENTS.length - 1) {
       const arrow = document.createElement("div");
       arrow.className = "flow-arrow";
@@ -386,7 +254,7 @@ function buildPipelineFlow() {
 }
 buildPipelineFlow();
 
-// ── Build agent time rows ──
+// -- Build agent time rows --
 function buildAgentTimes() {
   const container = document.getElementById("agent-times");
   container.innerHTML = "";
@@ -404,11 +272,10 @@ function buildAgentTimes() {
 }
 buildAgentTimes();
 
-// ── Render full state ──
+// -- Render full state --
 function renderState(data) {
   lastRenderTime = Date.now();
 
-  // Start/stop polling based on pipeline status
   if (data.status === "running" && !pollTimer) {
     pollTimer = setInterval(pollStatus, 2000);
   } else if (data.status !== "running" && pollTimer) {
@@ -416,12 +283,10 @@ function renderState(data) {
     pollTimer = null;
   }
 
-  // Pipeline badge
   const badge = document.getElementById("pipeline-badge");
   badge.className = `pipeline-badge ${data.status}`;
   badge.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
 
-  // Metrics
   document.getElementById("metric-session").textContent = data.session_id ? data.session_id.slice(0, 12) + "…" : "—";
   const mStatus = document.getElementById("metric-status");
   mStatus.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
@@ -431,13 +296,11 @@ function renderState(data) {
     document.getElementById("metric-elapsed").textContent = formatElapsed(data.elapsed);
   }
 
-  // Question
   const qBox = document.getElementById("question-box");
   if (data.question) {
     qBox.innerHTML = `<h2>Client Question</h2><p>${escapeHtml(data.question)}</p>`;
   }
 
-  // Agent nodes
   let maxElapsed = 0;
   const agentEntries = AGENTS.map(a => {
     const agentData = data.agents?.[a.key];
@@ -460,7 +323,6 @@ function renderState(data) {
     if (ad?.elapsed) elapsedEl.textContent = `${ad.elapsed.toFixed(1)}s`;
     else elapsedEl.textContent = "";
 
-    // Arrows
     if (i > 0) {
       const arrow = document.getElementById(`arrow-${i - 1}`);
       if (arrow) {
@@ -473,7 +335,6 @@ function renderState(data) {
     }
     prevDone = status === "done";
 
-    // Time bars
     const barFill = document.getElementById(`time-bar-${cfg.key}`);
     const timeVal = document.getElementById(`time-val-${cfg.key}`);
     if (ad?.elapsed && maxElapsed > 0) {
@@ -485,7 +346,6 @@ function renderState(data) {
     }
   });
 
-  // Activity log
   renderLog(data.activity_log || []);
 }
 
@@ -520,57 +380,44 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
-// ── WebSocket ──
+// -- WebSocket --
 function connect() {
   if (ws && ws.readyState <= 1) return;
   ws = new WebSocket(WS_URL);
-
   ws.onopen = () => {
     document.getElementById("ws-dot").classList.add("connected");
     document.getElementById("ws-label").textContent = "Connected";
     if (reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
   };
-
   ws.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data);
       if (msg.type === "state" && msg.data) renderState(msg.data);
     } catch {}
   };
-
   ws.onclose = () => {
     document.getElementById("ws-dot").classList.remove("connected");
     document.getElementById("ws-label").textContent = "Reconnecting…";
     scheduleReconnect();
   };
-
-  ws.onerror = () => {
-    ws.close();
-  };
+  ws.onerror = () => { ws.close(); };
 }
 
 function scheduleReconnect() {
   if (reconnectTimer) return;
-  reconnectTimer = setInterval(() => {
-    connect();
-  }, 3000);
+  reconnectTimer = setInterval(() => { connect(); }, 3000);
 }
 
-// ── Initial load via REST, then switch to WS ──
 async function pollStatus() {
   try {
     const res = await fetch(`${API}/status`);
-    if (res.ok) {
-      const data = await res.json();
-      renderState(data);
-    }
+    if (res.ok) { const data = await res.json(); renderState(data); }
   } catch {}
 }
 
 async function init() {
   await pollStatus();
   connect();
-  // Safety net: poll every 2s as fallback in case WS is flaky
   pollTimer = setInterval(pollStatus, 2000);
 }
 

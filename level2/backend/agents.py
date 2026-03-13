@@ -26,6 +26,9 @@ import re
 from typing import Generator
 
 import ollama
+import requests
+from bs4 import BeautifulSoup
+from ddgs import DDGS
 
 # ---------------------------------------------------------------------------
 # Model configuration (override via environment variables)
@@ -33,13 +36,10 @@ import ollama
 ENGAGEMENT_MANAGER_MODEL = os.getenv("ENGAGEMENT_MANAGER_MODEL", "qwen3:8b")
 MARKET_RESEARCHER_MODEL = os.getenv("MARKET_RESEARCHER_MODEL", "qwen3:14b")
 STRATEGY_CONSULTANT_MODEL = os.getenv("STRATEGY_CONSULTANT_MODEL", "qwen3:32b")
-EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "qwen3:14b")
-
 AGENT_MODELS = {
     "engagement_manager": ENGAGEMENT_MANAGER_MODEL,
     "market_researcher": MARKET_RESEARCHER_MODEL,
     "strategy_consultant": STRATEGY_CONSULTANT_MODEL,
-    "evaluator": EVALUATOR_MODEL,
 }
 
 
@@ -101,6 +101,109 @@ def strip_think_tags(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Market Researcher tools — search_web and read_document
+# ---------------------------------------------------------------------------
+
+_MR_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "search_web",
+            "description": (
+                "Search the web for information about a topic. "
+                "Returns titles, URLs, and text snippets for the top results."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "The search query to run.",
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Number of results to return (default 5, max 10).",
+                        "default": 5,
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_document",
+            "description": (
+                "Fetch and read the text content of a web page by URL. "
+                "Use this after search_web to read the full content of a relevant result."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "The URL of the page to fetch.",
+                    },
+                },
+                "required": ["url"],
+            },
+        },
+    },
+]
+
+_HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; ResearchBot/1.0)"}
+_DOC_CHAR_LIMIT = 3000  # truncate fetched pages to this many characters
+
+
+def search_web(query: str, max_results: int = 5) -> list[dict]:
+    """Run a DuckDuckGo text search and return structured results."""
+    max_results = min(int(max_results), 10)
+    print(f"[tool:search_web] query={query!r} max_results={max_results}", flush=True)
+    results = []
+    try:
+        with DDGS() as ddgs:
+            for r in ddgs.text(query, max_results=max_results):
+                results.append({
+                    "title": r.get("title", ""),
+                    "url": r.get("href", ""),
+                    "snippet": r.get("body", ""),
+                })
+    except Exception as exc:
+        results.append({"error": str(exc)})
+    print(f"[tool:search_web] returned {len(results)} results", flush=True)
+    return results
+
+
+def read_document(url: str) -> str:
+    """Fetch a URL and return cleaned plain text, truncated to _DOC_CHAR_LIMIT chars."""
+    print(f"[tool:read_document] url={url}", flush=True)
+    try:
+        resp = requests.get(url, timeout=10, headers=_HEADERS)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.text, "html.parser")
+        for tag in soup(["script", "style", "nav", "footer", "header", "aside"]):
+            tag.decompose()
+        text = soup.get_text(separator="\n", strip=True)
+        print(f"[tool:read_document] fetched {len(text)} chars (truncated to {_DOC_CHAR_LIMIT})", flush=True)
+        return text[:_DOC_CHAR_LIMIT]
+    except Exception as exc:
+        print(f"[tool:read_document] error: {exc}", flush=True)
+        return f"[Error fetching {url}: {exc}]"
+
+
+def _dispatch_tool(name: str, args: dict) -> str:
+    """Execute a tool call by name and return its result as a JSON string."""
+    if name == "search_web":
+        result = search_web(**args)
+    elif name == "read_document":
+        result = read_document(**args)
+    else:
+        result = {"error": f"Unknown tool: {name}"}
+    return json.dumps(result, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
 # System Prompts
 # ---------------------------------------------------------------------------
 ENGAGEMENT_MANAGER_PROMPT = """\
@@ -138,25 +241,37 @@ OUTPUT FORMAT — You must respond with valid JSON matching this exact structure
 Respond ONLY with the JSON object. No commentary, no markdown, no extra text.\
 """
 
-MARKET_RESEARCHER_PROMPT = """\
-You are a Market Researcher at an AI consulting firm. You investigate market \
-landscapes and produce structured research findings.
+MARKET_RESEARCHER_RESEARCH_PROMPT = """\
+You are a Market Researcher at an AI consulting firm. Your task right now is \
+to gather information using your research tools.
 
-RESPONSIBILITIES:
-- Analyze the target market: size, growth trajectory, and dynamics
-- Identify key competitors and their market positions
-- Spot relevant market trends and emerging patterns
-- Define customer segments and their characteristics
-- Distill findings into clear, evidence-based insights
+You have two tools available:
+- search_web(query, max_results): search the web for relevant information
+- read_document(url): fetch and read the full text of a web page
+
+INSTRUCTIONS:
+- Use search_web to find sources on market size, competitors, trends, and \
+customer segments relevant to the business question
+- Use read_document on the most promising URLs to get deeper content
+- Make multiple searches with different queries to cover all workstreams
+- Stop when you have gathered enough information to produce a thorough analysis
+
+RESTRICTIONS:
+- Do NOT produce financial analysis, ROI estimates, or cost projections
+- Do NOT assess risks
+- Only gather market intelligence\
+"""
+
+MARKET_RESEARCHER_SYNTHESIS_PROMPT = """\
+You are a Market Researcher at an AI consulting firm. You have already \
+conducted web research and the findings are provided below. Now synthesize \
+that research into structured findings.
 
 RESTRICTIONS — You must obey these absolutely:
 - Do NOT perform financial analysis (costs, ROI, projections)
 - Do NOT assess risks
 - Do NOT write the final consulting report or strategic recommendations
-- ONLY produce market research findings
-
-You will receive the client question and an analysis plan with workstreams. \
-Focus your research on addressing the relevant workstreams and key questions.
+- Base your output ONLY on the research findings provided — do not invent data
 
 OUTPUT FORMAT — You must respond with valid JSON matching this exact structure:
 {
@@ -226,48 +341,6 @@ Write in a professional, concise consulting style. Use data from the market \
 research to support your points. Be specific and actionable.\
 """
 
-EVALUATOR_PROMPT = """\
-You are an independent Evaluator at an AI consulting firm. Your job is to \
-objectively assess the quality of consulting reports.
-
-RESPONSIBILITIES:
-- Score the report on 6 criteria (1–10 scale each)
-- Provide honest, specific justification for each score
-- Calculate an overall score (average of all six)
-- Write a brief evaluation summary
-
-RESTRICTIONS — You must obey these absolutely:
-- Do NOT modify the report
-- Do NOT add new analysis or recommendations
-- ONLY evaluate and score — nothing more
-- Be critical and honest — do not inflate scores
-
-SCORING CRITERIA:
-1. Completeness   — Are all aspects of the business question addressed?
-2. Accuracy       — Are claims and numbers supported and realistic?
-3. Coherence      — Does the analysis flow logically from data to recommendation?
-4. Structure      — Is it well-organized like a professional consulting deliverable?
-5. Actionability  — Are the recommendations specific enough to act on?
-6. Critical Depth — Are risks, limitations, and counterarguments addressed?
-
-OUTPUT FORMAT — You must respond with valid JSON matching this exact structure:
-{
-  "evaluation": {
-    "scores": {
-      "completeness":   {"score": 8, "justification": "Specific reason..."},
-      "accuracy":       {"score": 7, "justification": "Specific reason..."},
-      "coherence":      {"score": 8, "justification": "Specific reason..."},
-      "structure":      {"score": 9, "justification": "Specific reason..."},
-      "actionability":  {"score": 7, "justification": "Specific reason..."},
-      "critical_depth": {"score": 6, "justification": "Specific reason..."}
-    },
-    "overall_score": 7.5,
-    "summary": "Brief overall assessment of 2–3 sentences"
-  }
-}
-
-Respond ONLY with the JSON object. No commentary, no markdown, no extra text.\
-"""
 
 
 # ---------------------------------------------------------------------------
@@ -294,11 +367,16 @@ class EngagementManager:
 
 
 class MarketResearcher:
-    """Investigates the market landscape and produces structured findings."""
+    """Investigates the market landscape using web search tools, then produces
+    structured findings via a two-phase approach:
+      Phase 1 — Tool loop: LLM calls search_web / read_document to gather data
+      Phase 2 — Synthesis: LLM converts collected research into the JSON schema
+    """
 
     name = "market_researcher"
     display_name = "Market Researcher"
     model = MARKET_RESEARCHER_MODEL
+    MAX_TOOL_ROUNDS = 8  # cap to prevent runaway loops
 
     def run(self, question: str, analysis_plan: dict) -> dict:
         """Return the market analysis as a parsed dict.
@@ -306,16 +384,69 @@ class MarketResearcher:
         Receives only the question and the analysis plan (tool restriction:
         cannot see any other agent's output).
         """
+        research_context = self._research_phase(question, analysis_plan)
+        return self._synthesis_phase(question, analysis_plan, research_context)
+
+    # ------------------------------------------------------------------
+    # Phase 1: tool-calling research loop
+    # ------------------------------------------------------------------
+    def _research_phase(self, question: str, analysis_plan: dict) -> str:
+        """Run the tool loop and return a text summary of all gathered findings."""
         user_prompt = (
             f"CLIENT QUESTION:\n{question}\n\n"
             f"ANALYSIS PLAN:\n{json.dumps(analysis_plan, indent=2)}\n\n"
-            "Based on the analysis plan above, produce a comprehensive market "
-            "analysis addressing the relevant workstreams and key questions."
+            "Use search_web and read_document to gather the market information "
+            "needed to address every workstream in the analysis plan. "
+            "When you have enough data, stop calling tools."
+        )
+        messages = [
+            {"role": "system", "content": MARKET_RESEARCHER_RESEARCH_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        tool_results: list[str] = []
+
+        for _ in range(self.MAX_TOOL_ROUNDS):
+            response = ollama.chat(
+                model=self.model,
+                messages=messages,
+                tools=_MR_TOOLS,
+            )
+            msg = response["message"]
+            messages.append(msg)
+
+            tool_calls = msg.get("tool_calls") or []
+            if not tool_calls:
+                # LLM finished calling tools
+                break
+
+            for tc in tool_calls:
+                name = tc["function"]["name"]
+                args = tc["function"]["arguments"]
+                result_str = _dispatch_tool(name, args)
+                tool_results.append(f"[{name}({args})]\n{result_str}")
+                messages.append({"role": "tool", "content": result_str})
+
+        return "\n\n---\n\n".join(tool_results) if tool_results else "(no tool results)"
+
+    # ------------------------------------------------------------------
+    # Phase 2: structured synthesis
+    # ------------------------------------------------------------------
+    def _synthesis_phase(
+        self, question: str, analysis_plan: dict, research_context: str
+    ) -> dict:
+        """Convert the raw research findings into the required JSON schema."""
+        user_prompt = (
+            f"CLIENT QUESTION:\n{question}\n\n"
+            f"ANALYSIS PLAN:\n{json.dumps(analysis_plan, indent=2)}\n\n"
+            f"RESEARCH FINDINGS:\n{research_context}\n\n"
+            "Synthesize the research findings above into a structured market "
+            "analysis that addresses every workstream in the analysis plan."
         )
         response = ollama.chat(
             model=self.model,
             messages=[
-                {"role": "system", "content": MARKET_RESEARCHER_PROMPT},
+                {"role": "system", "content": MARKET_RESEARCHER_SYNTHESIS_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
             format="json",
@@ -358,35 +489,6 @@ class StrategyConsultant:
         )
         yield from _filter_think_stream(stream)
 
-
-class Evaluator:
-    """Independently scores the final consulting report on a rubric."""
-
-    name = "evaluator"
-    display_name = "Evaluator"
-    model = EVALUATOR_MODEL
-
-    def run(self, question: str, report: str) -> dict:
-        """Return the evaluation scorecard as a parsed dict.
-
-        Receives only the original question and the final report
-        (tool restriction: cannot see intermediate agent outputs).
-        """
-        user_prompt = (
-            f"ORIGINAL CLIENT QUESTION:\n{question}\n\n"
-            f"CONSULTING REPORT TO EVALUATE:\n{report}\n\n"
-            "Evaluate the above consulting report on all 6 criteria. "
-            "Be critical and honest in your assessment."
-        )
-        response = ollama.chat(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": EVALUATOR_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            format="json",
-        )
-        return extract_json(response["message"]["content"])
 
 
 # ---------------------------------------------------------------------------

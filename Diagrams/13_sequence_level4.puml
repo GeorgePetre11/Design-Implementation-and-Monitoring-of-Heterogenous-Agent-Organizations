@@ -7,7 +7,7 @@ skinparam shadowing false
 skinparam roundCorner 8
 skinparam sequenceMessageAlign center
 
-title **Level 4 — Full Execution Sequence**\n//Example: "Should we expand into the US market?"//
+title **Level 3 — Full Execution Sequence**\n//Example: "Should we expand into the US market?"//
 
 actor Client as client
 participant "Orchestrator" as orch #F5F5F5
