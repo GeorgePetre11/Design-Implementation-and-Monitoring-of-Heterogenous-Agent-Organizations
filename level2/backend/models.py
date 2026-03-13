@@ -58,25 +58,3 @@ class MarketAnalysis(BaseModel):
     key_findings: list[str]
 
 
-# ---------------------------------------------------------------------------
-# Evaluator output
-# ---------------------------------------------------------------------------
-
-class CriterionScore(BaseModel):
-    score: int
-    justification: str
-
-
-class EvaluationScores(BaseModel):
-    completeness: CriterionScore
-    accuracy: CriterionScore
-    coherence: CriterionScore
-    structure: CriterionScore
-    actionability: CriterionScore
-    critical_depth: CriterionScore
-
-
-class Evaluation(BaseModel):
-    scores: EvaluationScores
-    overall_score: float
-    summary: str

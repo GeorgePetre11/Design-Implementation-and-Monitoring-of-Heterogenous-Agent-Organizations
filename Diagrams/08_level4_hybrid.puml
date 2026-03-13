@@ -1,4 +1,4 @@
-@startuml level5_hybrid
+@startuml level4_hybrid
 !theme plain
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontName "Segoe UI"
@@ -6,7 +6,7 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam roundCorner 10
 
-title **Level 5 — Hybrid Organization**\n//Hierarchical management + cross-agent iteration loops//
+title **Level 4 — Hybrid Organization**\n//Hierarchical management + cross-agent iteration loops//
 
 |#E3F2FD|Engagement Manager|
 start

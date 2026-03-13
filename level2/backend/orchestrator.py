@@ -18,7 +18,6 @@ from agents import (
     EngagementManager,
     MarketResearcher,
     StrategyConsultant,
-    Evaluator,
     strip_think_tags,
 )
 import monitor
@@ -34,7 +33,7 @@ def _sse(data: dict) -> str:
 
 def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     """
-    Execute the four-agent pipeline and yield SSE event strings.
+    Execute the three-agent pipeline and yield SSE event strings.
 
     SSE event types emitted:
       agent_start   — an agent begins processing
@@ -48,14 +47,12 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     em = EngagementManager()
     mr = MarketResearcher()
     sc = StrategyConsultant()
-    ev = Evaluator()
 
     # Initialize pipeline state for the dashboard
     state.reset_state(session_id, question, [
         {"name": em.name, "display_name": em.display_name, "model": em.model},
         {"name": mr.name, "display_name": mr.display_name, "model": mr.model},
         {"name": sc.name, "display_name": sc.display_name, "model": sc.model},
-        {"name": ev.name, "display_name": ev.display_name, "model": ev.model},
     ])
 
     # ------------------------------------------------------------------
@@ -214,62 +211,6 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     yield _sse({
         "type": "agent_complete",
         "agent": sc.name,
-        "elapsed": elapsed,
-    })
-
-    # ------------------------------------------------------------------
-    # Phase 4: Evaluator — score the report
-    # ------------------------------------------------------------------
-    state.update_agent(ev.name, "working")
-    yield _sse({
-        "type": "agent_start",
-        "agent": ev.name,
-        "display_name": ev.display_name,
-        "model": ev.model,
-    })
-    monitor.log_event(
-        session_id, "agent_start",
-        agent_name=ev.display_name,
-        data={"model": ev.model},
-    )
-
-    try:
-        t0 = time.time()
-        # Orchestrator routing: Evaluator receives only question + report
-        eval_data = None
-        last_err = None
-        for attempt in range(MAX_RETRIES):
-            try:
-                eval_data = ev.run(question, full_report)
-                break
-            except (ValueError, Exception) as e:
-                last_err = e
-                if attempt < MAX_RETRIES - 1:
-                    continue
-        if eval_data is None:
-            raise last_err
-        elapsed = round(time.time() - t0, 2)
-    except Exception as exc:
-        state.update_agent(ev.name, "error", error=str(exc))
-        state.fail_pipeline(str(exc))
-        monitor.log_event(
-            session_id, "agent_error",
-            agent_name=ev.display_name,
-            data={"error": str(exc)},
-        )
-        yield _sse({"type": "error", "agent": ev.name, "error": str(exc)})
-        return
-
-    state.update_agent(ev.name, "done", elapsed=elapsed, output=eval_data)
-    monitor.log_event(
-        session_id, "agent_complete",
-        agent_name=ev.display_name,
-        data={"elapsed": elapsed},
-    )
-    yield _sse({
-        "type": "agent_output",
-        "agent": ev.name,
-        "output": eval_data,
         "elapsed": elapsed,
     })
 

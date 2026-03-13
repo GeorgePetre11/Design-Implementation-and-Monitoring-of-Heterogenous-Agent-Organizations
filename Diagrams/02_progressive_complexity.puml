@@ -6,7 +6,7 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam roundCorner 8
 
-title **Progressive Complexity — 5 Levels of Agent Organization**
+title **Progressive Complexity — 4 Levels of Agent Organization**
 
 skinparam rectangle {
   FontColor #1A1A1A
@@ -23,53 +23,45 @@ rectangle "**Level 1 — Single Agent (Baseline)**" as L1 #E3F2FD {
 }
 
 ' === LEVEL 2 ===
-rectangle "**Level 2 — Two Agents (Basic Split)**" as L2 #E8F5E9 {
-  rectangle "Consultant Agent\n(Research + Analysis + Writing)" as l2a #C8E6C9
-  rectangle "Evaluator Agent\n(Quality Scoring)" as l2b #C8E6C9
-  l2a -right-> l2b : "report"
+rectangle "**Level 2 — Four Agents (Core Roles)**" as L2 #E8F5E9 {
+  rectangle "Engagement\nManager" as l2em #C8E6C9
+  rectangle "Market\nResearcher" as l2mr #C8E6C9
+  rectangle "Strategy\nConsultant" as l2sc #C8E6C9
+  rectangle "Evaluator" as l2ev #C8E6C9
+  l2em -right-> l2mr : "plan"
+  l2mr -right-> l2sc : "findings"
+  l2sc -right-> l2ev : "report"
 }
 
 ' === LEVEL 3 ===
-rectangle "**Level 3 — Four Agents (Core Roles)**" as L3 #FFF3E0 {
+rectangle "**Level 3 — Six Agents (Full Specialization)**" as L3 #FFF3E0 {
   rectangle "Engagement\nManager" as l3em #FFE0B2
   rectangle "Market\nResearcher" as l3mr #FFE0B2
+  rectangle "Financial\nAnalyst" as l3fa #FFE0B2
+  rectangle "Risk\nAnalyst" as l3ra #FFE0B2
   rectangle "Strategy\nConsultant" as l3sc #FFE0B2
   rectangle "Evaluator" as l3ev #FFE0B2
-  l3em -right-> l3mr : "plan"
-  l3mr -right-> l3sc : "findings"
-  l3sc -right-> l3ev : "report"
+
+  l3em --> l3mr
+  l3em --> l3fa
+  l3em --> l3ra
+  l3mr --> l3sc
+  l3fa --> l3sc
+  l3ra --> l3sc
+  l3sc --> l3ev
 }
 
 ' === LEVEL 4 ===
-rectangle "**Level 4 — Six Agents (Full Specialization)**" as L4 #F3E5F5 {
-  rectangle "Engagement\nManager" as l4em #E1BEE7
-  rectangle "Market\nResearcher" as l4mr #E1BEE7
-  rectangle "Financial\nAnalyst" as l4fa #E1BEE7
-  rectangle "Risk\nAnalyst" as l4ra #E1BEE7
-  rectangle "Strategy\nConsultant" as l4sc #E1BEE7
-  rectangle "Evaluator" as l4ev #E1BEE7
-
-  l4em --> l4mr
-  l4em --> l4fa
-  l4em --> l4ra
-  l4mr --> l4sc
-  l4fa --> l4sc
-  l4ra --> l4sc
-  l4sc --> l4ev
-}
-
-' === LEVEL 5 ===
-rectangle "**Level 5 — Six Agents + Organizational Workflows**" as L5 #FFEBEE {
-  rectangle "Pipeline" as l5p #FFCDD2
-  rectangle "Hierarchical" as l5h #FFCDD2
-  rectangle "Hybrid\n(Hierarchical + Iteration)" as l5y #FFCDD2
-  l5p -[hidden]right- l5h
-  l5h -[hidden]right- l5y
+rectangle "**Level 4 — Six Agents + Organizational Workflows**" as L4 #FFEBEE {
+  rectangle "Pipeline" as l4p #FFCDD2
+  rectangle "Hierarchical" as l4h #FFCDD2
+  rectangle "Hybrid\n(Hierarchical + Iteration)" as l4y #FFCDD2
+  l4p -[hidden]right- l4h
+  l4h -[hidden]right- l4y
 }
 
 L1 -[hidden]down- L2
 L2 -[hidden]down- L3
 L3 -[hidden]down- L4
-L4 -[hidden]down- L5
 
 @enduml

@@ -1,4 +1,4 @@
-@startuml level5_pipeline
+@startuml level4_pipeline
 !theme plain
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontName "Segoe UI"
@@ -6,7 +6,7 @@ skinparam defaultFontSize 12
 skinparam shadowing false
 skinparam roundCorner 10
 
-title **Level 5 — Pipeline Organization**\n//Fixed sequential order, no going back//
+title **Level 4 — Pipeline Organization**\n//Fixed sequential order, no going back//
 
 |#E3F2FD|Stage 1|
 start

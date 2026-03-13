@@ -1,4 +1,4 @@
-@startuml level5_hierarchical
+@startuml level4_hierarchical
 !theme plain
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontName "Segoe UI"
@@ -6,7 +6,7 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam roundCorner 10
 
-title **Level 5 — Hierarchical Organization**\n//Engagement Manager acts as managing partner with review authority//
+title **Level 4 — Hierarchical Organization**\n//Engagement Manager acts as managing partner with review authority//
 
 |#E3F2FD|Engagement Manager (Managing Partner)|
 start
