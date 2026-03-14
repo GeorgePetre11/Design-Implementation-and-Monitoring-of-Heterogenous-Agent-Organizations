@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evaluator — AI Consulting Firm</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --text: #e4e4e7;
+      --muted: #8b8d97;
+      --accent: #6366f1;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --orange: #f97316;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 0.3rem; }
+    .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
+
+    /* Form */
+    .form-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.3rem; margin-top: 1rem; }
+    label:first-child { margin-top: 0; }
+    input, textarea, select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 0.6rem 0.8rem;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+    textarea { resize: vertical; min-height: 200px; }
+    select { cursor: pointer; }
+    button {
+      margin-top: 1.2rem;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 0.7rem 2rem;
+      font-family: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Status */
+    .status {
+      color: var(--yellow);
+      font-size: 0.85rem;
+      margin-top: 1rem;
+      display: none;
+    }
+    .status.visible { display: block; }
+
+    /* Scorecard */
+    .scorecard {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      display: none;
+    }
+    .scorecard.visible { display: block; }
+    .scorecard h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+    .overall {
+      text-align: center;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border-radius: 8px;
+      background: var(--bg);
+    }
+    .overall-score {
+      font-size: 3rem;
+      font-weight: bold;
+    }
+    .overall-label { color: var(--muted); font-size: 0.8rem; margin-top: 0.3rem; }
+
+    .criteria-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .criterion-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+    .criterion-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .criterion-name { font-size: 0.85rem; font-weight: 600; text-transform: uppercase; }
+    .criterion-score {
+      font-size: 1.3rem;
+      font-weight: bold;
+      padding: 0.1rem 0.5rem;
+      border-radius: 4px;
+    }
+    .score-high { color: var(--green); }
+    .score-mid { color: var(--yellow); }
+    .score-low { color: var(--orange); }
+    .score-bad { color: var(--red); }
+    .criterion-justification { color: var(--muted); font-size: 0.78rem; line-height: 1.5; }
+
+    .summary-section { margin-top: 1.5rem; }
+    .summary-section h3 { font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .summary-text { color: var(--muted); font-size: 0.85rem; line-height: 1.6; margin-bottom: 1rem; }
+    .list { list-style: none; padding: 0; }
+    .list li {
+      font-size: 0.82rem;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .list li::before { margin-right: 0.5rem; }
+    .strengths li::before { content: "+"; color: var(--green); font-weight: bold; }
+    .weaknesses li::before { content: "-"; color: var(--red); font-weight: bold; }
+
+    .meta {
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    /* Past results */
+    .past-results { margin-top: 2rem; }
+    .past-results h2 { font-size: 1rem; margin-bottom: 1rem; }
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.7rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      font-size: 0.82rem;
+    }
+    .result-row:hover { border-color: var(--accent); }
+  </style>
+</head>
+<body>
+
+  <h1>Evaluator</h1>
+  <p class="subtitle">Independent quality judge &mdash; DeepSeek-R1:70b</p>
+
+  <!-- Input form -->
+  <div class="form-section">
+    <label for="question">Client Business Question</label>
+    <input type="text" id="question" placeholder="e.g., Should we expand into the US market?" />
+
+    <label for="level">Complexity Level</label>
+    <select id="level">
+      <option value="1">Level 1 — Single Agent (Baseline)</option>
+      <option value="2">Level 2 — Three Agents (Core Roles)</option>
+      <option value="3" selected>Level 3 — Five Agents (Full Specialization)</option>
+      <option value="4">Level 4 — Six Agents + Organizational Workflows</option>
+    </select>
+
+    <label for="report">Consulting Report (paste Markdown)</label>
+    <textarea id="report" placeholder="Paste the full consulting report here..."></textarea>
+
+    <button id="evalBtn" onclick="submitEvaluation()">Evaluate Report</button>
+    <div class="status" id="status">Evaluating... this may take a while with a 70B model.</div>
+  </div>
+
+  <!-- Scorecard output -->
+  <div class="scorecard" id="scorecard"></div>
+
+  <!-- Past results -->
+  <div class="past-results" id="pastResults">
+    <h2>Past Evaluations</h2>
+    <div id="resultsList"></div>
+  </div>
+
+<script>
+  const API = window.location.hostname === 'localhost'
+    ? 'http://localhost:8100'
+    : `${window.location.protocol}//${window.location.hostname}:8100`;
+
+  function scoreClass(score) {
+    if (score >= 8) return 'score-high';
+    if (score >= 6) return 'score-mid';
+    if (score >= 4) return 'score-low';
+    return 'score-bad';
+  }
+
+  function renderScorecard(data) {
+    const sc = data.scorecard;
+    const criteria = ['completeness', 'accuracy', 'coherence', 'structure', 'actionability', 'critical_depth'];
+
+    let html = `
+      <h2>Evaluation Scorecard</h2>
+      <div class="overall">
+        <div class="overall-score ${scoreClass(sc.overall_score)}">${sc.overall_score.toFixed(2)}</div>
+        <div class="overall-label">OVERALL SCORE (weighted average)</div>
+      </div>
+      <div class="criteria-grid">
+    `;
+
+    for (const c of criteria) {
+      const entry = sc[c];
+      const label = c.replace('_', ' ');
+      html += `
+        <div class="criterion-card">
+          <div class="criterion-header">
+            <span class="criterion-name">${label}</span>
+            <span class="criterion-score ${scoreClass(entry.score)}">${entry.score}/10</span>
+          </div>
+          <div class="criterion-justification">${entry.justification}</div>
+        </div>
+      `;
+    }
+
+    html += `</div>`;
+
+    html += `
+      <div class="summary-section">
+        <h3>Summary</h3>
+        <p class="summary-text">${sc.summary}</p>
+
+        <h3>Strengths</h3>
+        <ul class="list strengths">
+          ${sc.strengths.map(s => `<li>${s}</li>`).join('')}
+        </ul>
+
+        <h3 style="margin-top: 1rem;">Weaknesses</h3>
+        <ul class="list weaknesses">
+          ${sc.weaknesses.map(w => `<li>${w}</li>`).join('')}
+        </ul>
+      </div>
+
+      <div class="meta">
+        Evaluation ID: ${data.evaluation_id} &nbsp;|&nbsp;
+        Level: ${data.level} &nbsp;|&nbsp;
+        Model: ${data.model} &nbsp;|&nbsp;
+        Time: ${data.elapsed_seconds}s
+      </div>
+    `;
+
+    const el = document.getElementById('scorecard');
+    el.innerHTML = html;
+    el.classList.add('visible');
+  }
+
+  async function submitEvaluation() {
+    const question = document.getElementById('question').value.trim();
+    const report = document.getElementById('report').value.trim();
+    const level = parseInt(document.getElementById('level').value);
+
+    if (!question || !report) {
+      alert('Please fill in both the question and the report.');
+      return;
+    }
+
+    const btn = document.getElementById('evalBtn');
+    const status = document.getElementById('status');
+    btn.disabled = true;
+    status.classList.add('visible');
+    document.getElementById('scorecard').classList.remove('visible');
+
+    try {
+      const resp = await fetch(`${API}/evaluate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, report, level }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.detail || 'Evaluation failed');
+      }
+
+      const data = await resp.json();
+      renderScorecard(data);
+      loadPastResults();
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      status.classList.remove('visible');
+    }
+  }
+
+  async function loadPastResults() {
+    try {
+      const resp = await fetch(`${API}/results`);
+      if (!resp.ok) return;
+      const results = await resp.json();
+      const el = document.getElementById('resultsList');
+
+      if (results.length === 0) {
+        el.innerHTML = '<p style="color: var(--muted); font-size: 0.82rem;">No evaluations yet.</p>';
+        return;
+      }
+
+      el.innerHTML = results.map(r => `
+        <div class="result-row" onclick="loadResult('${r.evaluation_id}')">
+          <span>L${r.level} — ${r.question}...</span>
+          <span class="${scoreClass(r.overall_score)}" style="font-weight:bold;">${r.overall_score?.toFixed(2) ?? '?'}</span>
+        </div>
+      `).join('');
+    } catch { }
+  }
+
+  async function loadResult(id) {
+    try {
+      const resp = await fetch(`${API}/results/${id}`);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      renderScorecard(data);
+      document.getElementById('question').value = data.question || '';
+      document.getElementById('level').value = data.level || 3;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch { }
+  }
+
+  // Load past results on page load
+  loadPastResults();
+</script>
+
+</body>
+</html>
