@@ -26,12 +26,15 @@ end fork
 |#E3F2FD|Engagement Manager|
 :Review intermediate outputs;
 
-if (EM approves?) then (yes)
-  :Forward to Strategy Consultant;
-else (no)
-  :Request revisions\n(with feedback);
-  backward :Specialists revise;
-endif
+repeat
+  if (EM approves?) then (yes)
+    :Forward to Strategy Consultant;
+    break
+  else (no)
+    :Request revisions\n(with feedback);
+  endif
+  :Specialists revise;
+repeat while (Revisions needed?) is (yes)
 
 |#F3E5F5|Strategy Consultant|
 :Begin synthesis;

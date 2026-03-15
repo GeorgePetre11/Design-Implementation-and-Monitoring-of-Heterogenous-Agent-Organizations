@@ -83,9 +83,9 @@ rectangle "**Layer 5: Validation Layer** (Safety Net)" as L5 #FFEBEE {
   end note
 }
 
-L1 -[hidden]down- L2
-L2 -[hidden]down- L3
-L3 -[hidden]down- L4
-L4 -[hidden]down- L5
+L1 -[hidden]down-> L2
+L2 -[hidden]down-> L3
+L3 -[hidden]down-> L4
+L4 -[hidden]down-> L5
 
 @enduml
