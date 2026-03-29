@@ -16,7 +16,7 @@ skinparam rectangle {
 rectangle "**Level 1 — Single Agent (Baseline)**" as L1 #E3F2FD {
   rectangle "Generic Agent\n(No specialization)" as l1a #BBDEFB
   note right of l1a
-    1 agent, 1 model
+    1 agent, 1 model (qwen2.5:14b)
     No role separation
     No evaluation
   end note
@@ -34,30 +34,42 @@ rectangle "**Level 2 — Four Agents (Core Roles)**" as L2 #E8F5E9 {
 }
 
 ' === LEVEL 3 ===
-rectangle "**Level 3 — Six Agents (Full Specialization)**" as L3 #FFF3E0 {
+rectangle "**Level 3 — Five Agents (Full Specialization)**" as L3 #FFF3E0 {
   rectangle "Engagement\nManager" as l3em #FFE0B2
   rectangle "Market\nResearcher" as l3mr #FFE0B2
   rectangle "Financial\nAnalyst" as l3fa #FFE0B2
   rectangle "Risk\nAnalyst" as l3ra #FFE0B2
   rectangle "Strategy\nConsultant" as l3sc #FFE0B2
-  rectangle "Evaluator" as l3ev #FFE0B2
 
-  l3em --> l3mr
-  l3em --> l3fa
-  l3em --> l3ra
-  l3mr --> l3sc
-  l3fa --> l3sc
-  l3ra --> l3sc
-  l3sc --> l3ev
+  l3em -right-> l3mr : "plan"
+  l3mr -right-> l3fa : "plan +\nmarket"
+  l3fa -right-> l3ra : "plan + market\n+ financial"
+  l3ra -right-> l3sc : "all analyses"
 }
 
 ' === LEVEL 4 ===
-rectangle "**Level 4 — Six Agents + Organizational Workflows**" as L4 #FFEBEE {
-  rectangle "Pipeline" as l4p #FFCDD2
-  rectangle "Hierarchical" as l4h #FFCDD2
-  rectangle "Hybrid\n(Hierarchical + Iteration)" as l4y #FFCDD2
-  l4p -[hidden]right- l4h
-  l4h -[hidden]right- l4y
+rectangle "**Level 4 — Five Agents + EM Review + Evaluator\n(Hybrid Hierarchical)**" as L4 #FFEBEE {
+  rectangle "EM" as l4em #FFCDD2
+  rectangle "MR" as l4mr #FFCDD2
+  rectangle "FA" as l4fa #FFCDD2
+  rectangle "RA" as l4ra #FFCDD2
+  rectangle "SC" as l4sc #FFCDD2
+  rectangle "Evaluator" as l4ev #FFCDD2
+
+  l4em -right-> l4mr
+  l4mr -right-> l4em : "review"
+  l4em -right-> l4fa
+  l4fa -right-> l4em : "review"
+  l4em -right-> l4ra
+  l4ra -right-> l4em : "review"
+  l4em -right-> l4sc
+  l4sc -right-> l4em : "review"
+  l4em -right-> l4ev
+
+  note bottom of L4
+    Sequential pipeline + EM review
+    after each agent (max 1 revision)
+  end note
 }
 
 L1 -[hidden]down- L2

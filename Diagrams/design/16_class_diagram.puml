@@ -23,37 +23,38 @@ abstract class Agent {
 
 class EngagementManager extends Agent {
   - role = ENGAGEMENT_MANAGER
-  - model = "claude-haiku"
+  - model = "qwen3:8b"
   + decompose_question(): AnalysisPlan
+  + review_output(output: AgentOutput): ReviewResult
 }
 
 class MarketResearcher extends Agent {
   - role = MARKET_RESEARCHER
-  - model = "claude-sonnet"
+  - model = "qwen3:14b"
   + research_market(): MarketAnalysis
 }
 
 class FinancialAnalyst extends Agent {
   - role = FINANCIAL_ANALYST
-  - model = "gpt-4o-mini"
+  - model = "deepseek-r1:14b / qwen3:14b"
   + analyze_financials(): FinancialAnalysis
 }
 
 class RiskAnalyst extends Agent {
   - role = RISK_ANALYST
-  - model = "mistral-medium"
+  - model = "qwen3:14b"
   + assess_risks(): RiskMatrix
 }
 
 class StrategyConsultant extends Agent {
   - role = STRATEGY_CONSULTANT
-  - model = "claude-opus"
+  - model = "qwen3:32b / qwen3.5:27b"
   + synthesize_report(): ConsultingReport
 }
 
 class Evaluator extends Agent {
   - role = EVALUATOR
-  - model = "claude-sonnet"
+  - model = "claude-opus-4-6"
   + evaluate_report(): EvaluationScorecard
 }
 
@@ -65,19 +66,14 @@ abstract class Orchestrator {
   + route_task(task, agent): AgentOutput
 }
 
-class PipelineOrchestrator extends Orchestrator {
-  + run(): execute agents sequentially
-}
-
-class HierarchicalOrchestrator extends Orchestrator {
-  - max_revisions: int
-  + run(): EM reviews, can reject
-}
-
-class HybridOrchestrator extends Orchestrator {
-  - max_iterations: int
-  + run(): cross-agent iteration loops
-}
+note right of Orchestrator
+  Each level implements
+  its own orchestrator:
+  L2: sequential pipeline
+  L3: sequential pipeline
+  L4: hybrid hierarchical
+  (EM review + max 1 revision)
+end note
 
 class EventLogger {
   - db: SQLiteConnection
@@ -101,9 +97,8 @@ enum AgentRole {
 }
 
 enum LLMProvider {
-  ANTHROPIC
-  OPENAI
-  MISTRAL
+  OLLAMA
+  ANTHROPIC_API
 }
 
 ' ── Output Models ──
@@ -119,6 +114,7 @@ class MarketAnalysis {
   competitors: List[Competitor]
   trends: List[Trend]
   customer_segments: List[Segment]
+  sources: List[str]
 }
 
 class FinancialAnalysis {
@@ -127,6 +123,7 @@ class FinancialAnalysis {
   roi: float
   break_even_months: int
   sensitivity: Dict
+  data_inputs_used: List[str]
 }
 
 class RiskMatrix {
@@ -151,6 +148,20 @@ class EvaluationScorecard {
   justifications: Dict[str, str]
 }
 
+class ReviewResult {
+  approved: bool
+  feedback: str
+  revision_needed: bool
+}
+
+class RevisionInfo {
+  agent_role: AgentRole
+  attempt: int
+  original_output: AgentOutput
+  feedback: str
+  revised_output: AgentOutput
+}
+
 Agent --> AgentRole
 Agent --> LLMProvider
 Orchestrator o-- Agent
@@ -158,6 +169,7 @@ Orchestrator --> EventLogger
 Orchestrator --> SchemaValidator
 
 EngagementManager ..> AnalysisPlan : produces
+EngagementManager ..> ReviewResult : produces
 MarketResearcher ..> MarketAnalysis : produces
 FinancialAnalyst ..> FinancialAnalysis : produces
 RiskAnalyst ..> RiskMatrix : produces

@@ -23,7 +23,7 @@ rectangle "**Evaluation Rubric (6 Criteria)**" as rubric #E3F2FD {
 
 rectangle "**Experiment 1: Progressive Complexity**" as exp1 #E8F5E9 {
   note right
-    Same question → all 5 levels
+    Same question → all 4 levels
     Compare evaluator scores
     Hypothesis: Higher levels = higher quality
   end note
@@ -31,7 +31,8 @@ rectangle "**Experiment 1: Progressive Complexity**" as exp1 #E8F5E9 {
 
 rectangle "**Experiment 2: Organizational Structure**" as exp2 #FFF3E0 {
   note right
-    Level 5 only: Pipeline vs Hierarchical vs Hybrid
+    Level 4 only: Sequential pipeline vs
+    Hybrid (sequential + EM review after each agent)
     Compare quality, time, cost
     Hypothesis: Hybrid = best quality, Pipeline = fastest
   end note
@@ -39,8 +40,8 @@ rectangle "**Experiment 2: Organizational Structure**" as exp2 #FFF3E0 {
 
 rectangle "**Experiment 3: Heterogeneity Impact**" as exp3 #F3E5F5 {
   note right
-    All same model (e.g., all Sonnet)
-    vs mixed models (Haiku + Sonnet + GPT + Mistral)
+    All same model (e.g., all qwen3:14b)
+    vs mixed models (qwen3:8b + qwen3:14b + qwen3.5:27b + deepseek-r1:14b)
     Compare output quality
   end note
 }

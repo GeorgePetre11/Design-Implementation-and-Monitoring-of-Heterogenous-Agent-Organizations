@@ -7,16 +7,16 @@ skinparam shadowing false
 skinparam roundCorner 8
 skinparam sequenceMessageAlign center
 
-title **Level 3 — Full Execution Sequence**\n//Example: "Should we expand into the US market?"//
+title **Level 4 — Full Execution Sequence (Hybrid Hierarchical)**\n//Example: "Should we expand into the US market?"//
 
 actor Client as client
 participant "Orchestrator" as orch #F5F5F5
-participant "Engagement\nManager\n(Haiku)" as em #E3F2FD
-participant "Market\nResearcher\n(Sonnet)" as mr #E8F5E9
-participant "Financial\nAnalyst\n(GPT-4o-mini)" as fa #FFF3E0
-participant "Risk\nAnalyst\n(Mistral)" as ra #FFEBEE
-participant "Strategy\nConsultant\n(Opus)" as sc #F3E5F5
-participant "Evaluator\n(Sonnet)" as ev #FFFDE7
+participant "Engagement\nManager\n(qwen3:8b)" as em #E3F2FD
+participant "Market\nResearcher\n(qwen3:14b)" as mr #E8F5E9
+participant "Financial\nAnalyst\n(qwen3:14b)" as fa #FFF3E0
+participant "Risk\nAnalyst\n(qwen3:14b)" as ra #FFEBEE
+participant "Strategy\nConsultant\n(qwen3.5:27b)" as sc #F3E5F5
+participant "Evaluator\n(Claude Opus 4.6)" as ev #FFFDE7
 database "Event\nStore" as db
 
 client -> orch : Business question
@@ -24,49 +24,104 @@ orch -> db : log(question_received)
 
 == Phase 1: Task Decomposition ==
 
-orch -> em : question + read_client_request()
+orch -> em : question
 activate em
-em --> orch : Analysis Plan JSON\n(4 workstreams)
+em --> orch : Analysis Plan JSON\n(workstreams)
 deactivate em
 orch -> db : log(em_completed, plan)
 orch -> orch : validate(AnalysisPlanSchema)
 
-== Phase 2: Parallel Research ==
+== Phase 2: Sequential Research with EM Review ==
 
-orch -> mr : plan.market_workstream\n+ [search_web, read_doc, summarize]
+orch -> mr : plan\n+ [search_web, read_document]
 activate mr
-orch -> fa : plan.financial_workstream\n+ [calculate, project, chart]
-activate fa
-orch -> ra : plan.risk_workstream\n+ [search_web, read_doc, assess_risk]
-activate ra
-
 mr --> orch : Market Analysis JSON
 deactivate mr
 orch -> db : log(mr_completed)
 orch -> orch : validate(MarketAnalysisSchema)
 
+orch -> em : review MR output
+activate em
+em --> orch : approved / revision needed
+deactivate em
+
+opt revision needed (max 1)
+  orch -> mr : plan + revision feedback
+  activate mr
+  mr --> orch : Revised Market Analysis JSON
+  deactivate mr
+  orch -> db : log(mr_revised)
+  orch -> orch : validate(MarketAnalysisSchema)
+end
+
+orch -> fa : plan + market_analysis
+activate fa
 fa --> orch : Financial Analysis JSON
 deactivate fa
 orch -> db : log(fa_completed)
 orch -> orch : validate(FinancialAnalysisSchema)
 
+orch -> em : review FA output
+activate em
+em --> orch : approved / revision needed
+deactivate em
+
+opt revision needed (max 1)
+  orch -> fa : plan + market_analysis\n+ revision feedback
+  activate fa
+  fa --> orch : Revised Financial Analysis JSON
+  deactivate fa
+  orch -> db : log(fa_revised)
+  orch -> orch : validate(FinancialAnalysisSchema)
+end
+
+orch -> ra : plan + market_analysis\n+ financial_analysis\n+ [search_web, read_document, assess_risk]
+activate ra
 ra --> orch : Risk Matrix JSON
 deactivate ra
 orch -> db : log(ra_completed)
 orch -> orch : validate(RiskMatrixSchema)
 
-== Phase 3: Synthesis ==
+orch -> em : review RA output
+activate em
+em --> orch : approved / revision needed
+deactivate em
 
-orch -> sc : market_analysis +\nfinancial_analysis +\nrisk_matrix\n+ [read_all_analyses]
+opt revision needed (max 1)
+  orch -> ra : plan + market_analysis\n+ financial_analysis\n+ revision feedback
+  activate ra
+  ra --> orch : Revised Risk Matrix JSON
+  deactivate ra
+  orch -> db : log(ra_revised)
+  orch -> orch : validate(RiskMatrixSchema)
+end
+
+== Phase 3: Synthesis + EM Review ==
+
+orch -> sc : plan + market_analysis\n+ financial_analysis + risk_matrix
 activate sc
 sc --> orch : Consulting Report JSON
 deactivate sc
 orch -> db : log(sc_completed)
 orch -> orch : validate(ConsultingReportSchema)
 
-== Phase 4: Evaluation ==
+orch -> em : review SC output
+activate em
+em --> orch : approved / revision needed
+deactivate em
 
-orch -> ev : consulting_report\n+ [read_report, score]
+opt revision needed (max 1)
+  orch -> sc : all analyses + revision feedback
+  activate sc
+  sc --> orch : Revised Consulting Report JSON
+  deactivate sc
+  orch -> db : log(sc_revised)
+  orch -> orch : validate(ConsultingReportSchema)
+end
+
+== Phase 4: Evaluation (Claude Opus 4.6 via Anthropic API) ==
+
+orch -> ev : consulting_report
 activate ev
 ev --> orch : Scorecard JSON\n(6 criteria × score 1-10)
 deactivate ev

@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Consulting Firm — Level 4</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+
+    header { text-align: center; margin-bottom: 1.5rem; }
+    header h1 { font-size: 1.75rem; font-weight: 700; color: #f8fafc; }
+    header p  { margin-top: 0.4rem; font-size: 0.9rem; color: #94a3b8; }
+    .badges { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem; flex-wrap: wrap; }
+    .badge {
+      display: inline-block; background: #1e293b; border: 1px solid #334155;
+      color: #7dd3fc; font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px;
+    }
+    .badge.hybrid { color: #fbbf24; border-color: #92400e; }
+    .badge.dashboard-link {
+      color: #a78bfa; border-color: #4c1d95; cursor: pointer; text-decoration: none; transition: all 0.2s;
+    }
+    .badge.dashboard-link:hover { background: #4c1d95; color: #e9d5ff; }
+
+    .card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 1.5rem; width: 100%; max-width: 900px;
+    }
+
+    textarea {
+      width: 100%; height: 90px; background: #0f1117; border: 1px solid #334155;
+      border-radius: 8px; color: #e2e8f0; font-size: 0.95rem; padding: 0.75rem 1rem;
+      resize: vertical; outline: none; transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: #7dd3fc; }
+    textarea::placeholder { color: #475569; }
+
+    .row { display: flex; gap: 0.75rem; margin-top: 0.75rem; align-items: center; }
+
+    button {
+      background: #0ea5e9; color: #fff; border: none; border-radius: 8px;
+      padding: 0.6rem 1.4rem; font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: background 0.2s; white-space: nowrap;
+    }
+    button:hover:not(:disabled) { background: #38bdf8; }
+    button:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+    #status { font-size: 0.82rem; color: #64748b; }
+    #status.running { color: #7dd3fc; }
+    #status.reviewing { color: #fbbf24; }
+    #status.revising { color: #f97316; }
+    #status.done    { color: #4ade80; }
+    #status.error   { color: #f87171; }
+
+    .metrics-bar {
+      display: flex; gap: 1rem; margin: 1rem auto 0; width: 100%; max-width: 900px; flex-wrap: wrap;
+    }
+    .metric {
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      padding: 0.35rem 0.8rem; font-size: 0.78rem; color: #94a3b8;
+    }
+    .metric span { color: #f8fafc; font-weight: 600; margin-left: 0.3rem; }
+
+    /* -- Collapsible agent output -- */
+    .agent-output-section { width: 100%; max-width: 900px; margin-top: 1rem; display: none; }
+    .agent-output-header {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #1e293b; border: 1px solid #334155; border-radius: 10px 10px 0 0;
+      padding: 0.6rem 1rem; cursor: pointer; user-select: none; transition: background 0.2s;
+    }
+    .agent-output-header:hover { background: #253349; }
+    .agent-output-header h3 { font-size: 0.85rem; font-weight: 600; color: #f8fafc; }
+    .agent-output-header .toggle { font-size: 0.75rem; color: #64748b; transition: transform 0.3s; }
+    .agent-output-header .toggle.open { transform: rotate(180deg); }
+    .agent-output-header .elapsed-badge {
+      font-size: 0.7rem; color: #94a3b8; background: #0f1117;
+      padding: 0.15rem 0.5rem; border-radius: 999px; margin-left: auto; margin-right: 0.6rem;
+    }
+    .review-badge {
+      font-size: 0.65rem; font-weight: 600; padding: 0.12rem 0.45rem; border-radius: 999px;
+      margin-right: 0.4rem;
+    }
+    .review-badge.approved { background: #14532d; color: #4ade80; }
+    .review-badge.revised  { background: #7c2d12; color: #fdba74; }
+    .agent-output-content {
+      background: #0f1117; border: 1px solid #334155; border-top: none;
+      border-radius: 0 0 10px 10px; padding: 1rem 1.2rem; font-size: 0.82rem;
+      line-height: 1.6; color: #cbd5e1; max-height: 400px; overflow-y: auto; display: none;
+    }
+    .agent-output-content.open { display: block; }
+    .agent-output-content h4 { font-size: 0.8rem; color: #7dd3fc; margin: 0.8rem 0 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .agent-output-content h4:first-child { margin-top: 0; }
+    .agent-output-content ul { padding-left: 1.2rem; margin: 0.3rem 0; }
+    .agent-output-content li { margin-bottom: 0.2rem; }
+    .agent-output-content .tag {
+      display: inline-block; background: #1e293b; border: 1px solid #334155;
+      padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; color: #94a3b8; margin-right: 0.3rem;
+    }
+
+    /* -- Risk colors -- */
+    .risk-high { color: #f87171; }
+    .risk-medium { color: #fbbf24; }
+    .risk-low { color: #4ade80; }
+    .risk-critical { color: #ef4444; font-weight: 700; }
+
+    /* -- Report -- */
+    #report-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
+    .toolbar { display: flex; align-items: center; margin-bottom: 0.5rem; }
+    .toolbar h2 { font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+    .copy-btn {
+      background: #1e293b; border: 1px solid #334155; color: #94a3b8;
+      padding: 0.3rem 0.7rem; font-size: 0.75rem; border-radius: 6px; cursor: pointer; margin-left: 0.5rem;
+    }
+    .copy-btn:hover { border-color: #7dd3fc; color: #7dd3fc; background: #1e293b; }
+
+    #report-output {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 1.5rem 2rem; white-space: pre-wrap; font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 0.88rem; line-height: 1.7; color: #e2e8f0; min-height: 200px; max-height: 60vh; overflow-y: auto;
+    }
+    #report-output h1, #report-output h2, #report-output h3 { color: #f8fafc; margin: 1rem 0 0.4rem; font-weight: 700; }
+    #report-output h1 { font-size: 1.25rem; border-bottom: 1px solid #334155; padding-bottom: 0.3rem; }
+    #report-output h2 { font-size: 1.05rem; }
+    #report-output h3 { font-size: 0.92rem; color: #7dd3fc; }
+    #report-output strong { color: #f8fafc; }
+    #report-output em { color: #94a3b8; }
+    #report-output hr { border: none; border-top: 1px solid #334155; margin: 1rem 0; }
+
+    /* -- Evaluator scorecard -- */
+    #evaluator-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
+    .scorecard {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 1.2rem 1.5rem;
+    }
+    .scorecard h2 { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.8rem; }
+    .score-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0.4rem 0; border-bottom: 1px solid #1f293744;
+    }
+    .score-row .label { font-size: 0.8rem; color: #cbd5e1; }
+    .score-row .score-val { font-size: 0.9rem; font-weight: 700; min-width: 36px; text-align: right; }
+    .score-row .bar-bg { flex: 1; background: #0f1117; border-radius: 3px; height: 6px; margin: 0 0.8rem; overflow: hidden; }
+    .score-row .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    .overall-score { text-align: center; margin-top: 1rem; }
+    .overall-score .big { font-size: 2rem; font-weight: 800; }
+    .overall-score .out-of { font-size: 0.85rem; color: #64748b; }
+    .score-summary { margin-top: 0.8rem; font-size: 0.82rem; color: #cbd5e1; line-height: 1.5; }
+    .score-list { margin-top: 0.5rem; font-size: 0.78rem; }
+    .score-list h4 { font-size: 0.75rem; color: #7dd3fc; text-transform: uppercase; margin: 0.5rem 0 0.2rem; }
+    .score-list ul { padding-left: 1.2rem; color: #94a3b8; }
+    .score-list li { margin-bottom: 0.15rem; }
+
+    @media (max-width: 700px) { body { padding: 1rem 0.5rem; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>AI Consulting Firm</h1>
+  <p>Heterogeneous Agent Organizations — Thesis Project</p>
+  <div class="badges">
+    <span class="badge">Level 4 · Five Agents · Hybrid Hierarchical</span>
+    <span class="badge hybrid">EM Review + Revision Loops</span>
+    <a class="badge dashboard-link" href="/dashboard.html" target="_blank">Monitoring Dashboard</a>
+  </div>
+</header>
+
+<div class="card">
+  <textarea id="question"
+    placeholder="Enter your business question, e.g. &quot;We are a mid-size European SaaS company. Should we expand into the US market?&quot;"
+  ></textarea>
+  <div class="row">
+    <button id="submit-btn" onclick="startAnalysis()">Analyze</button>
+    <span id="status">Ready</span>
+  </div>
+</div>
+
+<div class="metrics-bar">
+  <div class="metric">Session <span id="m-session">—</span></div>
+  <div class="metric">Elapsed <span id="m-elapsed">—</span></div>
+  <div class="metric">Report tokens <span id="m-tokens">0</span></div>
+  <div class="metric">Revisions <span id="m-revisions">0</span></div>
+</div>
+
+<!-- Agent output sections -->
+<div class="agent-output-section" id="section-engagement_manager">
+  <div class="agent-output-header" onclick="toggleSection('engagement_manager')">
+    <h3>Analysis Plan</h3>
+    <span class="review-badge" id="review-engagement_manager"></span>
+    <span class="elapsed-badge" id="badge-engagement_manager"></span>
+    <span class="toggle" id="toggle-engagement_manager">&#9660;</span>
+  </div>
+  <div class="agent-output-content" id="content-engagement_manager"></div>
+</div>
+
+<div class="agent-output-section" id="section-market_researcher">
+  <div class="agent-output-header" onclick="toggleSection('market_researcher')">
+    <h3>Market Research</h3>
+    <span class="review-badge" id="review-market_researcher"></span>
+    <span class="elapsed-badge" id="badge-market_researcher"></span>
+    <span class="toggle" id="toggle-market_researcher">&#9660;</span>
+  </div>
+  <div class="agent-output-content" id="content-market_researcher"></div>
+</div>
+
+<div class="agent-output-section" id="section-financial_analyst">
+  <div class="agent-output-header" onclick="toggleSection('financial_analyst')">
+    <h3>Financial Analysis</h3>
+    <span class="review-badge" id="review-financial_analyst"></span>
+    <span class="elapsed-badge" id="badge-financial_analyst"></span>
+    <span class="toggle" id="toggle-financial_analyst">&#9660;</span>
+  </div>
+  <div class="agent-output-content" id="content-financial_analyst"></div>
+</div>
+
+<div class="agent-output-section" id="section-risk_analyst">
+  <div class="agent-output-header" onclick="toggleSection('risk_analyst')">
+    <h3>Risk Assessment</h3>
+    <span class="review-badge" id="review-risk_analyst"></span>
+    <span class="elapsed-badge" id="badge-risk_analyst"></span>
+    <span class="toggle" id="toggle-risk_analyst">&#9660;</span>
+  </div>
+  <div class="agent-output-content" id="content-risk_analyst"></div>
+</div>
+
+<div id="report-section">
+  <div class="toolbar">
+    <h2>Consulting Report</h2>
+    <button class="copy-btn" onclick="copyReport()">Copy</button>
+    <button class="copy-btn" onclick="downloadPDF()">Download PDF</button>
+  </div>
+  <div id="report-output"></div>
+</div>
+
+<div id="evaluator-section">
+  <div class="scorecard" id="scorecard"></div>
+</div>
+
+<script>
+const API = "http://localhost:8000";
+let reportRaw = "";
+let tokenCount = 0;
+let revisionCount = 0;
+let startTime = null;
+let timerInterval = null;
+let isRevision = false;
+
+function setStatus(text, cls) {
+  const el = document.getElementById("status");
+  el.textContent = text;
+  el.className = cls || "";
+}
+function updateTimer() {
+  if (!startTime) return;
+  const s = (Date.now() - startTime) / 1000;
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60).toString().padStart(2, "0");
+  document.getElementById("m-elapsed").textContent = m > 0 ? `${m}:${sec}` : `${sec}s`;
+}
+function toggleSection(agent) {
+  document.getElementById("content-" + agent).classList.toggle("open");
+  document.getElementById("toggle-" + agent).classList.toggle("open");
+}
+function renderMarkdown(text) {
+  return text
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^---$/gm, '<hr>')
+    .replace(/^- (.+)$/gm, '&bull; $1')
+    .replace(/\n/g, '<br>');
+}
+function scoreColor(s) {
+  if (s >= 8) return "#22c55e"; if (s >= 6) return "#eab308"; if (s >= 4) return "#f97316"; return "#ef4444";
+}
+function riskColor(level) {
+  if (level === "critical") return "#ef4444";
+  if (level === "high") return "#f87171";
+  if (level === "medium") return "#fbbf24";
+  return "#4ade80";
+}
+
+function renderAnalysisPlan(data) {
+  const plan = data.analysis_plan || data;
+  let h = "";
+  if (plan.business_question_summary) h += `<h4>Business Question</h4><p>${plan.business_question_summary}</p>`;
+  const ws = plan.workstreams || [];
+  h += `<h4>Workstreams (${ws.length})</h4>`;
+  for (const w of ws) {
+    h += `<div style="margin-bottom:0.6rem"><strong>${w.id}. ${w.title}</strong><br><span style="color:#94a3b8">${w.description}</span>`;
+    if (w.key_questions?.length) { h += `<ul>`; for (const q of w.key_questions) h += `<li>${q}</li>`; h += `</ul>`; }
+    h += `</div>`;
+  }
+  return h;
+}
+
+function renderMarketResearch(data) {
+  const ma = data.market_analysis || data;
+  let h = "";
+  if (ma.market_overview) h += `<h4>Market Overview</h4><p>${ma.market_overview}</p>`;
+  if (ma.market_size_and_growth) h += `<h4>Market Size &amp; Growth</h4><p>${ma.market_size_and_growth}</p>`;
+  for (const c of (ma.key_competitors || [])) {
+    h += `<div style="margin-bottom:0.4rem"><strong>${c.name}</strong> <span class="tag">${c.market_position}</span>`;
+    if (c.source) h += ` <span class="tag" style="color:#7dd3fc">${c.source}</span>`;
+    h += `<br><span style="color:#94a3b8">${c.description}</span></div>`;
+  }
+  if (ma.market_trends?.length) { h += `<h4>Trends</h4><ul>`; for (const t of ma.market_trends) h += `<li>${t}</li>`; h += `</ul>`; }
+  for (const s of (ma.customer_segments || [])) {
+    h += `<div style="margin-bottom:0.3rem"><strong>${s.segment}</strong> — ${s.description}`;
+    if (s.size_estimate) h += ` <span class="tag">${s.size_estimate}</span>`;
+    h += `</div>`;
+  }
+  if (ma.key_findings?.length) { h += `<h4>Key Findings</h4><ul>`; for (const f of ma.key_findings) h += `<li>${f}</li>`; h += `</ul>`; }
+  if (ma.sources?.length) { h += `<h4>Sources (${ma.sources.length})</h4><ul>`; for (const u of ma.sources) h += `<li><a href="${u}" target="_blank" style="color:#7dd3fc">${u}</a></li>`; h += `</ul>`; }
+  return h;
+}
+
+function renderFinancialAnalysis(data) {
+  const fa = data.financial_analysis || data;
+  let h = "";
+  if (fa.executive_summary) h += `<h4>Executive Summary</h4><p>${fa.executive_summary}</p>`;
+  if (fa.data_inputs_used) h += `<h4>Data Inputs Used</h4><p style="color:#fbbf24;font-size:0.78rem">${fa.data_inputs_used}</p>`;
+  if (fa.cost_estimates?.length) {
+    h += `<h4>Cost Estimates</h4>`;
+    for (const c of fa.cost_estimates) {
+      h += `<div style="margin-bottom:0.4rem"><strong>${c.category}</strong> <span class="tag">${c.amount}</span> <span class="tag">${c.timeframe}</span><br><span style="color:#94a3b8">${c.notes}</span></div>`;
+    }
+  }
+  if (fa.revenue_projections?.length) {
+    h += `<h4>Revenue Projections</h4>`;
+    for (const r of fa.revenue_projections) {
+      h += `<div style="margin-bottom:0.4rem"><strong>${r.scenario}</strong><br>`;
+      h += `Y1: <span class="tag">${r.year_1}</span> Y2: <span class="tag">${r.year_2}</span> Y3: <span class="tag">${r.year_3}</span><br>`;
+      h += `<span style="color:#94a3b8">${r.assumptions}</span></div>`;
+    }
+  }
+  if (fa.roi_analysis) h += `<h4>ROI Analysis</h4><p>${fa.roi_analysis}</p>`;
+  if (fa.break_even_timeline) h += `<h4>Break-Even Timeline</h4><p>${fa.break_even_timeline}</p>`;
+  if (fa.sensitivity_analysis) h += `<h4>Sensitivity Analysis</h4><p>${fa.sensitivity_analysis}</p>`;
+  if (fa.key_financial_risks?.length) { h += `<h4>Key Financial Risks</h4><ul>`; for (const r of fa.key_financial_risks) h += `<li>${r}</li>`; h += `</ul>`; }
+  return h;
+}
+
+function renderRiskAssessment(data) {
+  const ra = data.risk_assessment || data;
+  let h = "";
+  if (ra.overall_risk_level) {
+    h += `<h4>Overall Risk Level</h4><p style="color:${riskColor(ra.overall_risk_level)};font-weight:700;text-transform:uppercase">${ra.overall_risk_level}</p>`;
+  }
+  if (ra.risk_summary) h += `<h4>Risk Summary</h4><p>${ra.risk_summary}</p>`;
+  if (ra.risks?.length) {
+    h += `<h4>Identified Risks (${ra.risks.length})</h4>`;
+    for (const r of ra.risks) {
+      const pColor = riskColor(r.probability === "high" ? "high" : r.probability === "medium" ? "medium" : "low");
+      const iColor = riskColor(r.impact === "high" ? "high" : r.impact === "medium" ? "medium" : "low");
+      h += `<div style="margin-bottom:0.6rem;padding:0.5rem;background:#1e293b;border-radius:6px">`;
+      h += `<strong>${r.id || ""}. ${r.title}</strong> <span class="tag">${r.category}</span>`;
+      if (r.source) h += ` <span class="tag" style="color:#7dd3fc">${r.source}</span>`;
+      h += `<br><span style="color:#94a3b8">${r.description}</span><br>`;
+      h += `Probability: <span style="color:${pColor}">${r.probability}</span> &middot; Impact: <span style="color:${iColor}">${r.impact}</span><br>`;
+      if (r.mitigation_suggestion) h += `<span style="color:#7dd3fc;font-size:0.75rem">Mitigation: ${r.mitigation_suggestion}</span>`;
+      h += `</div>`;
+    }
+  }
+  if (ra.key_risk_factors?.length) { h += `<h4>Key Risk Factors</h4><ul>`; for (const f of ra.key_risk_factors) h += `<li>${f}</li>`; h += `</ul>`; }
+  return h;
+}
+
+function renderScorecard(data) {
+  if (data.skipped) {
+    return `<h2>Evaluator</h2><p style="color:#64748b">Skipped: ${data.reason}</p>`;
+  }
+  const criteria = [
+    { key: "completeness", label: "Completeness", weight: "20%" },
+    { key: "accuracy", label: "Accuracy", weight: "20%" },
+    { key: "coherence", label: "Coherence", weight: "15%" },
+    { key: "structure", label: "Structure", weight: "15%" },
+    { key: "actionability", label: "Actionability", weight: "15%" },
+    { key: "critical_depth", label: "Critical Depth", weight: "15%" },
+  ];
+  let h = `<h2>Evaluator Scorecard <span style="font-size:0.7rem;color:#a78bfa">(Claude Opus 4.6)</span></h2>`;
+  h += `<div class="overall-score"><span class="big" style="color:${scoreColor(data.overall_score)}">${data.overall_score?.toFixed(1) || "?"}</span><span class="out-of"> / 10</span></div>`;
+  for (const c of criteria) {
+    const d = data[c.key];
+    if (!d) continue;
+    const color = scoreColor(d.score);
+    h += `<div class="score-row">`;
+    h += `<span class="label">${c.label} <span style="color:#475569;font-size:0.7rem">(${c.weight})</span></span>`;
+    h += `<div class="bar-bg"><div class="bar-fill" style="width:${d.score * 10}%;background:${color}"></div></div>`;
+    h += `<span class="score-val" style="color:${color}">${d.score}</span>`;
+    h += `</div>`;
+    if (d.justification) h += `<div style="font-size:0.72rem;color:#64748b;padding:0.15rem 0 0.4rem;margin-left:0.5rem">${d.justification}</div>`;
+  }
+  if (data.summary) h += `<div class="score-summary">${data.summary}</div>`;
+  h += `<div class="score-list">`;
+  if (data.strengths?.length) { h += `<h4>Strengths</h4><ul>`; for (const s of data.strengths) h += `<li style="color:#4ade80">${s}</li>`; h += `</ul>`; }
+  if (data.weaknesses?.length) { h += `<h4>Weaknesses</h4><ul>`; for (const w of data.weaknesses) h += `<li style="color:#f87171">${w}</li>`; h += `</ul>`; }
+  h += `</div>`;
+  return h;
+}
+
+const AGENT_SECTIONS = ["engagement_manager", "market_researcher", "financial_analyst", "risk_analyst"];
+
+async function startAnalysis() {
+  const question = document.getElementById("question").value.trim();
+  if (!question) { setStatus("Please enter a question.", "error"); return; }
+  reportRaw = ""; tokenCount = 0; revisionCount = 0; isRevision = false;
+  document.getElementById("m-tokens").textContent = "0";
+  document.getElementById("m-elapsed").textContent = "—";
+  document.getElementById("m-session").textContent = "—";
+  document.getElementById("m-revisions").textContent = "0";
+  document.getElementById("report-output").innerHTML = "";
+  document.getElementById("scorecard").innerHTML = "";
+  AGENT_SECTIONS.forEach(id => {
+    document.getElementById("section-" + id).style.display = "none";
+    document.getElementById("content-" + id).innerHTML = "";
+    document.getElementById("review-" + id).textContent = "";
+    document.getElementById("review-" + id).className = "review-badge";
+  });
+  document.getElementById("report-section").style.display = "none";
+  document.getElementById("evaluator-section").style.display = "none";
+  document.getElementById("submit-btn").disabled = true;
+  setStatus("Starting hybrid pipeline...", "running");
+  startTime = Date.now();
+  timerInterval = setInterval(updateTimer, 250);
+
+  try {
+    const res = await fetch(`${API}/analyze`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question }) });
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+    const reader = res.body.getReader(), decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n"); buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try { handleEvent(JSON.parse(line.slice(6).trim())); } catch {}
+      }
+    }
+  } catch (err) {
+    clearInterval(timerInterval);
+    setStatus("Connection error: " + err.message, "error");
+    document.getElementById("submit-btn").disabled = false;
+  }
+}
+
+function handleEvent(msg) {
+  switch (msg.type) {
+    case "agent_start":
+      setStatus(`${msg.display_name || msg.agent} is working...`, "running");
+      if (msg.agent === "strategy_consultant") {
+        if (!isRevision) {
+          document.getElementById("report-section").style.display = "block";
+          reportRaw = ""; tokenCount = 0;
+          document.getElementById("report-output").innerHTML = "";
+        }
+      }
+      break;
+    case "agent_output":
+      if (msg.agent === "engagement_manager") {
+        document.getElementById("section-engagement_manager").style.display = "block";
+        document.getElementById("badge-engagement_manager").textContent = msg.elapsed + "s";
+        document.getElementById("content-engagement_manager").innerHTML = renderAnalysisPlan(msg.output);
+        document.getElementById("content-engagement_manager").classList.add("open");
+        document.getElementById("toggle-engagement_manager").classList.add("open");
+      }
+      if (msg.agent === "market_researcher") {
+        document.getElementById("section-market_researcher").style.display = "block";
+        document.getElementById("badge-market_researcher").textContent = msg.elapsed + "s";
+        document.getElementById("content-market_researcher").innerHTML = renderMarketResearch(msg.output);
+        document.getElementById("content-market_researcher").classList.add("open");
+        document.getElementById("toggle-market_researcher").classList.add("open");
+        document.getElementById("content-engagement_manager").classList.remove("open");
+        document.getElementById("toggle-engagement_manager").classList.remove("open");
+        if (msg.revised) {
+          document.getElementById("review-market_researcher").textContent = "REVISED";
+          document.getElementById("review-market_researcher").className = "review-badge revised";
+        }
+      }
+      if (msg.agent === "financial_analyst") {
+        document.getElementById("section-financial_analyst").style.display = "block";
+        document.getElementById("badge-financial_analyst").textContent = msg.elapsed + "s";
+        document.getElementById("content-financial_analyst").innerHTML = renderFinancialAnalysis(msg.output);
+        document.getElementById("content-financial_analyst").classList.add("open");
+        document.getElementById("toggle-financial_analyst").classList.add("open");
+        document.getElementById("content-market_researcher").classList.remove("open");
+        document.getElementById("toggle-market_researcher").classList.remove("open");
+        if (msg.revised) {
+          document.getElementById("review-financial_analyst").textContent = "REVISED";
+          document.getElementById("review-financial_analyst").className = "review-badge revised";
+        }
+      }
+      if (msg.agent === "risk_analyst") {
+        document.getElementById("section-risk_analyst").style.display = "block";
+        document.getElementById("badge-risk_analyst").textContent = msg.elapsed + "s";
+        document.getElementById("content-risk_analyst").innerHTML = renderRiskAssessment(msg.output);
+        document.getElementById("content-risk_analyst").classList.add("open");
+        document.getElementById("toggle-risk_analyst").classList.add("open");
+        document.getElementById("content-financial_analyst").classList.remove("open");
+        document.getElementById("toggle-financial_analyst").classList.remove("open");
+        if (msg.revised) {
+          document.getElementById("review-risk_analyst").textContent = "REVISED";
+          document.getElementById("review-risk_analyst").className = "review-badge revised";
+        }
+      }
+      break;
+    case "review_start":
+      setStatus(`EM reviewing ${msg.agent.replace(/_/g, " ")}...`, "reviewing");
+      break;
+    case "review_result":
+      if (msg.approved) {
+        const rb = document.getElementById("review-" + msg.agent);
+        if (rb && !rb.classList.contains("revised")) {
+          rb.textContent = "APPROVED";
+          rb.className = "review-badge approved";
+        }
+      }
+      break;
+    case "revision_start":
+      setStatus(`${msg.agent.replace(/_/g, " ")} revising...`, "revising");
+      revisionCount++;
+      document.getElementById("m-revisions").textContent = revisionCount;
+      if (msg.agent === "strategy_consultant") {
+        isRevision = true;
+        reportRaw = ""; tokenCount = 0;
+        document.getElementById("report-output").innerHTML = '<p style="color:#f97316;font-size:0.8rem">Rewriting report based on EM feedback...</p>';
+      }
+      break;
+    case "token":
+      reportRaw += msg.content; tokenCount++;
+      document.getElementById("m-tokens").textContent = tokenCount;
+      document.getElementById("report-output").innerHTML = renderMarkdown(reportRaw);
+      document.getElementById("report-output").scrollTop = document.getElementById("report-output").scrollHeight;
+      break;
+    case "evaluator_output":
+      document.getElementById("evaluator-section").style.display = "block";
+      document.getElementById("scorecard").innerHTML = renderScorecard(msg.output);
+      break;
+    case "error":
+      setStatus("Error: " + msg.error, "error");
+      clearInterval(timerInterval);
+      document.getElementById("submit-btn").disabled = false;
+      break;
+    case "done":
+      clearInterval(timerInterval); updateTimer();
+      const revMsg = msg.revisions ? Object.values(msg.revisions).filter(r => r.was_revised).length : 0;
+      setStatus(`Pipeline complete. ${revMsg > 0 ? revMsg + " revision(s) needed." : "No revisions needed."}`, "done");
+      document.getElementById("submit-btn").disabled = false;
+      if (msg.session_id) document.getElementById("m-session").textContent = msg.session_id.slice(0, 8) + "...";
+      break;
+  }
+}
+
+function copyReport() {
+  navigator.clipboard.writeText(reportRaw).then(() => {
+    const b = document.querySelectorAll(".copy-btn")[0]; b.textContent = "Copied!"; setTimeout(() => b.textContent = "Copy", 1500);
+  });
+}
+function downloadPDF() {
+  const q = document.getElementById("question").value.trim(), w = window.open("", "_blank");
+  w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Consulting Report</title>
+  <style>
+    body{font-family:'Segoe UI',Georgia,serif;font-size:13px;line-height:1.8;color:#1a1a1a;max-width:800px;margin:40px auto;padding:0 40px}
+    h1{font-size:1.6rem;border-bottom:2px solid #1a1a1a;padding-bottom:6px;margin-top:1.5rem}
+    h2{font-size:1.25rem;margin-top:1.4rem;color:#111}
+    h3{font-size:1.05rem;margin-top:1rem;color:#333}
+    hr{border:none;border-top:1px solid #ccc;margin:1.5rem 0}
+    .pdf-header{display:flex;align-items:center;gap:16px;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #1e293b}
+    .pdf-header svg{flex-shrink:0}
+    .pdf-header-text{display:flex;flex-direction:column}
+    .firm-name{font-size:1.4rem;font-weight:700;color:#1e293b;letter-spacing:-0.02em}
+    .firm-tagline{font-size:0.7rem;color:#64748b;letter-spacing:0.08em;text-transform:uppercase;margin-top:2px}
+    .meta{font-size:.8rem;color:#666;margin-bottom:2rem;border-bottom:1px solid #eee;padding-bottom:1rem}
+    @media print{body{margin:0;padding:20px 40px}}
+  </style>
+</head>
+<body>
+  <div class="pdf-header">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="48" height="48" rx="10" fill="#1e293b"/>
+      <circle cx="24" cy="10" r="3.5" fill="#38bdf8"/>
+      <circle cx="10" cy="22" r="3.5" fill="#a78bfa"/>
+      <circle cx="38" cy="22" r="3.5" fill="#4ade80"/>
+      <circle cx="10" cy="36" r="3.5" fill="#f59e0b"/>
+      <circle cx="24" cy="36" r="3.5" fill="#f87171"/>
+      <circle cx="38" cy="36" r="3.5" fill="#e879f9"/>
+      <line x1="24" y1="14" x2="10" y2="18" stroke="#475569" stroke-width="1"/>
+      <line x1="24" y1="14" x2="38" y2="18" stroke="#475569" stroke-width="1"/>
+      <line x1="10" y1="26" x2="24" y2="32" stroke="#475569" stroke-width="1"/>
+      <line x1="38" y1="26" x2="24" y2="32" stroke="#475569" stroke-width="1"/>
+    </svg>
+    <div class="pdf-header-text">
+      <span class="firm-name">AI Consulting Firm</span>
+      <span class="firm-tagline">Heterogeneous Agent Organizations — Level 4 (Hybrid)</span>
+    </div>
+  </div>
+  <div class="meta">
+    <strong>Level 4 — Hybrid Hierarchical Workflow with EM Review</strong><br/>
+    <strong>Question:</strong> ${q}<br/>
+    <strong>Generated:</strong> ${new Date().toLocaleString()}
+  </div>
+  ${document.getElementById("report-output").innerHTML}
+  <script>window.onload=()=>{window.print();}<\/script>
+</body>
+</html>`);
+  w.document.close();
+}
+
+document.getElementById("question").addEventListener("keydown", e => { if (e.key === "Enter" && e.ctrlKey) startAnalysis(); });
+</script>
+</body>
+</html>

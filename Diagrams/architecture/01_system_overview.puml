@@ -39,24 +39,23 @@ package "Orchestrator (Pure Python — No LLM)" #E8F5E9 {
 }
 
 package "Agent Pool" #E8F4FD {
-  component "Engagement\nManager" as em <<Haiku>>
-  component "Market\nResearcher" as mr <<Sonnet>>
-  component "Financial\nAnalyst" as fa <<GPT-4o-mini>>
-  component "Risk\nAnalyst" as ra <<Mistral>>
-  component "Strategy\nConsultant" as sc <<Opus/GPT-4>>
-  component "Evaluator" as ev <<Sonnet>>
+  component "Engagement\nManager" as em <<qwen3:8b>>
+  component "Market\nResearcher" as mr <<qwen3:14b>>
+  component "Financial\nAnalyst" as fa <<qwen3:14b>>
+  component "Risk\nAnalyst" as ra <<qwen3:14b>>
+  component "Strategy\nConsultant" as sc <<qwen3.5:27b>>
+  component "Evaluator" as ev <<Claude Opus 4.6>>
 }
 
 package "LLM Providers" #FFF3E0 {
-  component "Anthropic API\n(Claude)" as anthropic
-  component "OpenAI API\n(GPT)" as openai
-  component "Mistral API" as mistral
+  component "Ollama\n(Local Inference)" as ollama
+  component "Anthropic API\n(Evaluator only)" as anthropic
 }
 
 package "Monitoring & Dashboard" #F3E5F5 {
   database "SQLite\nEvent Store" as db
-  component "WebSocket\nServer" as ws
-  component "React Dashboard\n(Frontend)" as dash
+  component "WebSocket +\nSSE Server" as ws
+  component "HTML/JS Dashboard\n(Frontend)" as dash
 }
 
 client --> input
@@ -78,11 +77,11 @@ ev --> validator
 
 validator --> schema
 
-em ..> anthropic
-mr ..> anthropic
-fa ..> openai
-ra ..> mistral
-sc ..> anthropic
+em ..> ollama
+mr ..> ollama
+fa ..> ollama
+ra ..> ollama
+sc ..> ollama
 ev ..> anthropic
 
 logger --> db

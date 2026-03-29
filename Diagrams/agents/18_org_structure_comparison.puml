@@ -6,89 +6,93 @@ skinparam defaultFontSize 10
 skinparam shadowing false
 skinparam roundCorner 8
 
-title **Level 4 — Organizational Structure Comparison**
+title **Complexity Levels — Organizational Structure Comparison**
 
 skinparam rectangle {
   FontColor #1A1A1A
 }
 
-rectangle "**Pipeline**" as pipe #E3F2FD {
-  rectangle "EM" as p1 #BBDEFB
-  rectangle "MR" as p2 #BBDEFB
-  rectangle "FA" as p3 #BBDEFB
-  rectangle "RA" as p4 #BBDEFB
-  rectangle "SC" as p5 #BBDEFB
-  rectangle "EV" as p6 #BBDEFB
-
-  p1 -right-> p2
-  p2 -right-> p3
-  p3 -right-> p4
-  p4 -right-> p5
-  p5 -right-> p6
+rectangle "**Level 1\nSingle Agent**" as lv1 #E3F2FD {
+  rectangle "Agent\nqwen2.5:14b" as a1 #BBDEFB
 
   note bottom
-    **Sequential, no feedback**
-    Fastest execution
-    Lowest cost
-    No revision possible
+    **1 agent, 1 model**
+    No specialization
+    No data routing
+    No revision
+    No evaluator
   end note
 }
 
-rectangle "**Hierarchical**" as hier #E8F5E9 {
-  rectangle "EM\n(Manager)" as h1 #C8E6C9
-  rectangle "MR" as h2 #C8E6C9
-  rectangle "FA" as h3 #C8E6C9
-  rectangle "RA" as h4 #C8E6C9
-  rectangle "SC" as h5 #C8E6C9
-  rectangle "EV" as h6 #C8E6C9
+rectangle "**Level 2\n4-Agent Pipeline**" as lv2 #E8F5E9 {
+  rectangle "EM\nqwen3:8b" as b1 #C8E6C9
+  rectangle "MR\nqwen3:14b" as b2 #C8E6C9
+  rectangle "SC\nqwen3:32b" as b3 #C8E6C9
+  rectangle "EV\nqwen3:14b" as b4 #C8E6C9
 
-  h1 -down-> h2
-  h1 -down-> h3
-  h1 -down-> h4
-  h2 -up-> h1 : review
-  h3 -up-> h1 : review
-  h4 -up-> h1 : review
-  h1 -down-> h5
-  h5 -up-> h1 : review
-  h1 -down-> h6
+  b1 -right-> b2
+  b2 -right-> b3
+  b3 -right-> b4
 
   note bottom
-    **EM reviews all outputs**
-    Can reject & request revision
-    Medium cost/time
-    Quality gate at each step
+    **4 agents, 3 model sizes**
+    Role specialization
+    Sequential pipeline
+    No revision
+    Evaluator present
   end note
 }
 
-rectangle "**Hybrid**" as hyb #FFF3E0 {
-  rectangle "EM\n(Manager)" as y1 #FFE0B2
-  rectangle "MR" as y2 #FFE0B2
-  rectangle "FA" as y3 #FFE0B2
-  rectangle "RA" as y4 #FFE0B2
-  rectangle "SC" as y5 #FFE0B2
-  rectangle "EV" as y6 #FFE0B2
+rectangle "**Level 3\n5-Agent Pipeline**" as lv3 #FFF3E0 {
+  rectangle "EM\nqwen3:8b" as c1 #FFE0B2
+  rectangle "MR\nqwen3:14b" as c2 #FFE0B2
+  rectangle "FA\ndeepseek-r1:14b" as c3 #FFE0B2
+  rectangle "RA\nqwen3:14b" as c4 #FFE0B2
+  rectangle "SC\nqwen3:32b" as c5 #FFE0B2
 
-  y1 -down-> y2
-  y1 -down-> y3
-  y1 -down-> y4
-  y2 -up-> y1 : review
-  y3 -up-> y1 : review
-  y4 -up-> y1 : review
-  y1 -down-> y5
-  y5 -up-> y1 : review
-  y1 -down-> y6
-  y4 ..> y2 : "needs\nmore data"
-  y5 ..> y3 : "needs\nscenarios"
+  c1 -right-> c2
+  c2 -right-> c3
+  c3 -right-> c4
+  c4 -right-> c5
 
   note bottom
-    **Hierarchical + iteration loops**
-    Cross-agent feedback
-    Highest cost/time
-    Best quality potential
+    **5 agents, 3 model families**
+    Full specialization
+    Sequential pipeline
+    No revision
+    No evaluator
   end note
 }
 
-pipe -[hidden]down- hier
-hier -[hidden]down- hyb
+rectangle "**Level 4\nHybrid with EM Review**" as lv4 #F3E5F5 {
+  rectangle "EM\nqwen3:8b" as d1 #E1BEE7
+  rectangle "MR\nqwen3:14b" as d2 #E1BEE7
+  rectangle "FA\nqwen3:14b" as d3 #E1BEE7
+  rectangle "RA\nqwen3:14b" as d4 #E1BEE7
+  rectangle "SC\nqwen3.5:27b" as d5 #E1BEE7
+  rectangle "EV\nClaude Opus 4.6" as d6 #E1BEE7
+
+  d1 -right-> d2
+  d2 -down-> d1 : review
+  d1 -right-> d3
+  d3 -down-> d1 : review
+  d1 -right-> d4
+  d4 -down-> d1 : review
+  d1 -right-> d5
+  d5 -down-> d1 : review
+  d1 -right-> d6
+
+  note bottom
+    **6 agents, 4 model families**
+    Full specialization
+    Sequential + EM review
+    Max 1 revision per agent
+    Evaluator via Anthropic API
+  end note
+}
+
+lv1 -[hidden]down- lv2
+lv2 -[hidden]down- lv3
+lv3 -[hidden]down- lv4
 
 @enduml

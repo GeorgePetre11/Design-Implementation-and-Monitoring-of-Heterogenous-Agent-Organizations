@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -28,30 +28,39 @@
     h1 { font-size: 1.4rem; margin-bottom: 0.3rem; }
     .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 2rem; }
 
-    /* Form */
-    .form-section {
+    /* Drop zone */
+    .drop-zone {
       background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.5rem;
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
       margin-bottom: 2rem;
     }
-    label { display: block; color: var(--muted); font-size: 0.8rem; margin-bottom: 0.3rem; margin-top: 1rem; }
-    label:first-child { margin-top: 0; }
-    input, textarea, select {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      color: var(--text);
-      padding: 0.6rem 0.8rem;
-      font-family: inherit;
-      font-size: 0.85rem;
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: #1e2133;
     }
-    textarea { resize: vertical; min-height: 200px; }
-    select { cursor: pointer; }
+    .drop-zone.has-file {
+      border-color: var(--green);
+      border-style: solid;
+    }
+    .drop-icon { font-size: 2.5rem; margin-bottom: 0.8rem; }
+    .drop-text { color: var(--muted); font-size: 0.9rem; }
+    .drop-text strong { color: var(--text); }
+    .file-name {
+      color: var(--green);
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      word-break: break-all;
+    }
+    .drop-hint { color: var(--muted); font-size: 0.75rem; margin-top: 0.5rem; }
+
+    input[type="file"] { display: none; }
+
     button {
-      margin-top: 1.2rem;
       background: var(--accent);
       color: white;
       border: none;
@@ -61,6 +70,8 @@
       font-size: 0.9rem;
       cursor: pointer;
       transition: opacity 0.2s;
+      display: block;
+      margin: 0 auto 2rem;
     }
     button:hover { opacity: 0.85; }
     button:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -69,7 +80,8 @@
     .status {
       color: var(--yellow);
       font-size: 0.85rem;
-      margin-top: 1rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
       display: none;
     }
     .status.visible { display: block; }
@@ -92,10 +104,7 @@
       border-radius: 8px;
       background: var(--bg);
     }
-    .overall-score {
-      font-size: 3rem;
-      font-weight: bold;
-    }
+    .overall-score { font-size: 3rem; font-weight: bold; }
     .overall-label { color: var(--muted); font-size: 0.8rem; margin-top: 0.3rem; }
 
     .criteria-grid {
@@ -175,25 +184,17 @@
   <h1>Evaluator</h1>
   <p class="subtitle">Independent quality judge &mdash; DeepSeek-R1:70b</p>
 
-  <!-- Input form -->
-  <div class="form-section">
-    <label for="question">Client Business Question</label>
-    <input type="text" id="question" placeholder="e.g., Should we expand into the US market?" />
-
-    <label for="level">Complexity Level</label>
-    <select id="level">
-      <option value="1">Level 1 — Single Agent (Baseline)</option>
-      <option value="2">Level 2 — Three Agents (Core Roles)</option>
-      <option value="3" selected>Level 3 — Five Agents (Full Specialization)</option>
-      <option value="4">Level 4 — Six Agents + Organizational Workflows</option>
-    </select>
-
-    <label for="report">Consulting Report (paste Markdown)</label>
-    <textarea id="report" placeholder="Paste the full consulting report here..."></textarea>
-
-    <button id="evalBtn" onclick="submitEvaluation()">Evaluate Report</button>
-    <div class="status" id="status">Evaluating... this may take a while with a 70B model.</div>
+  <!-- Drop zone -->
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-icon">&#128196;</div>
+    <div class="drop-text"><strong>Drop your report here</strong> or click to browse</div>
+    <div class="drop-hint">Supports .pdf, .md, .txt</div>
+    <div class="file-name" id="fileName"></div>
   </div>
+  <input type="file" id="fileInput" accept=".pdf,.md,.txt,.markdown" />
+
+  <button id="evalBtn" onclick="submitEvaluation()" disabled>Evaluate Report</button>
+  <div class="status" id="status">Evaluating... this may take a while with a 70B model.</div>
 
   <!-- Scorecard output -->
   <div class="scorecard" id="scorecard"></div>
@@ -205,10 +206,53 @@
   </div>
 
 <script>
-  const API = window.location.hostname === 'localhost'
-    ? 'http://localhost:8100'
-    : `${window.location.protocol}//${window.location.hostname}:8100`;
+  const API = window.location.origin;
+  let selectedFile = null;
 
+  // --- Drop zone logic ---
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const fileNameEl = document.getElementById('fileName');
+  const evalBtn = document.getElementById('evalBtn');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      setFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) {
+      setFile(fileInput.files[0]);
+    }
+  });
+
+  function setFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['pdf', 'md', 'txt', 'markdown'].includes(ext)) {
+      alert('Unsupported file type. Please use .pdf, .md, or .txt');
+      return;
+    }
+    selectedFile = file;
+    fileNameEl.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    dropZone.classList.add('has-file');
+    evalBtn.disabled = false;
+  }
+
+  // --- Scorecard rendering ---
   function scoreClass(score) {
     if (score >= 8) return 'score-high';
     if (score >= 6) return 'score-mid';
@@ -263,7 +307,6 @@
 
       <div class="meta">
         Evaluation ID: ${data.evaluation_id} &nbsp;|&nbsp;
-        Level: ${data.level} &nbsp;|&nbsp;
         Model: ${data.model} &nbsp;|&nbsp;
         Time: ${data.elapsed_seconds}s
       </div>
@@ -274,13 +317,10 @@
     el.classList.add('visible');
   }
 
+  // --- Submit ---
   async function submitEvaluation() {
-    const question = document.getElementById('question').value.trim();
-    const report = document.getElementById('report').value.trim();
-    const level = parseInt(document.getElementById('level').value);
-
-    if (!question || !report) {
-      alert('Please fill in both the question and the report.');
+    if (!selectedFile) {
+      alert('Please select a file first.');
       return;
     }
 
@@ -290,11 +330,13 @@
     status.classList.add('visible');
     document.getElementById('scorecard').classList.remove('visible');
 
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
     try {
-      const resp = await fetch(`${API}/evaluate`, {
+      const resp = await fetch(`${API}/evaluate/upload`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, report, level }),
+        body: formData,
       });
 
       if (!resp.ok) {
@@ -313,6 +355,7 @@
     }
   }
 
+  // --- Past results ---
   async function loadPastResults() {
     try {
       const resp = await fetch(`${API}/results`);
@@ -327,7 +370,7 @@
 
       el.innerHTML = results.map(r => `
         <div class="result-row" onclick="loadResult('${r.evaluation_id}')">
-          <span>L${r.level} — ${r.question}...</span>
+          <span>${r.question ? r.question.substring(0, 80) + '...' : 'Uploaded report'}</span>
           <span class="${scoreClass(r.overall_score)}" style="font-weight:bold;">${r.overall_score?.toFixed(2) ?? '?'}</span>
         </div>
       `).join('');
@@ -340,8 +383,6 @@
       if (!resp.ok) return;
       const data = await resp.json();
       renderScorecard(data);
-      document.getElementById('question').value = data.question || '';
-      document.getElementById('level').value = data.level || 3;
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch { }
   }

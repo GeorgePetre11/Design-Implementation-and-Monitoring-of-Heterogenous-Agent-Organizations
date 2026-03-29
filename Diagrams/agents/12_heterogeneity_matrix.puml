@@ -6,7 +6,7 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam roundCorner 8
 
-title **Agent Heterogeneity — Multi-Model, Multi-Provider Architecture**
+title **Agent Heterogeneity — Multi-Model Architecture**
 
 skinparam object {
   BackgroundColor #FAFAFA
@@ -15,54 +15,54 @@ skinparam object {
 }
 
 object "**Engagement Manager**" as em #E3F2FD {
-  Model = Claude Haiku (Small)
-  Provider = Anthropic
-  Tools = read_client_request()
+  Model = qwen3:8b (Small)
+  Provider = Ollama (local)
+  Tools = none
   Output = Analysis Plan JSON
   Role = Task decomposition
-  Reasoning = Fast, structured task
+  Reasoning = /no_think mode, fast structured task
 }
 
 object "**Market Researcher**" as mr #E8F5E9 {
-  Model = Claude Sonnet (Medium)
-  Provider = Anthropic
-  Tools = search_web(), read_document(), summarize_source()
+  Model = qwen3:14b (Medium)
+  Provider = Ollama (local)
+  Tools = search_web(), read_document()
   Output = Market Analysis JSON
   Role = Market investigation
-  Reasoning = Good synthesis ability
+  Reasoning = /think mode, synthesis ability
 }
 
 object "**Financial Analyst**" as fa #FFF3E0 {
-  Model = GPT-4o-mini (Medium)
-  Provider = OpenAI
-  Tools = calculate(), create_projection(), query_data(), create_chart()
+  Model = deepseek-r1:14b (L3) / qwen3:14b (L4)
+  Provider = Ollama (local)
+  Tools = none (pure analysis from context)
   Output = Financial Analysis JSON
   Role = Quantitative analysis
-  Reasoning = Strong numerical reasoning
+  Reasoning = Chain-of-thought / /think mode
 }
 
 object "**Risk Analyst**" as ra #FFEBEE {
-  Model = Mistral Medium
-  Provider = Mistral
+  Model = qwen3:14b (Medium)
+  Provider = Ollama (local)
   Tools = search_web(), read_document(), assess_risk()
   Output = Risk Matrix JSON
   Role = Risk identification
-  Reasoning = Edge case thinking
+  Reasoning = /think mode, edge case thinking
 }
 
 object "**Strategy Consultant**" as sc #F3E5F5 {
-  Model = Claude Opus / GPT-4 (Large)
-  Provider = Anthropic / OpenAI
-  Tools = read_market_research(), read_financial_analysis(), read_risk_assessment()
+  Model = qwen3:32b (L3) / qwen3.5:27b (L4)
+  Provider = Ollama (local)
+  Tools = reads all analyses from context
   Output = Consulting Report JSON
   Role = Synthesis & recommendation
-  Reasoning = Best writing & reasoning
+  Reasoning = /think mode, best writing & reasoning
 }
 
-object "**Evaluator**" as ev #FFFDE7 {
-  Model = Claude Sonnet (Large)
-  Provider = Anthropic
-  Tools = read_final_report(), score_report()
+object "**Evaluator** (L4 only)" as ev #FFFDE7 {
+  Model = Claude Opus 4.6 (Large)
+  Provider = Anthropic API (cloud)
+  Tools = reads report from context
   Output = Scorecard JSON
   Role = Independent quality judge
   Reasoning = Critical assessment
@@ -76,11 +76,11 @@ sc -[hidden]left- ev
 
 note as N1
   **Heterogeneity Dimensions:**
-  1. **Model Size:** Small → Medium → Large
-  2. **Provider:** Anthropic, OpenAI, Mistral
-  3. **Tools:** Different tool sets per agent
-  4. **Output Schema:** Different JSON structures
-  5. **Reasoning Style:** Structured vs. analytical vs. creative
+  1. **Model Size:** 8B → 14B → 27B/32B
+  2. **Model Family:** Qwen 3, Qwen 3.5, DeepSeek R1, Claude
+  3. **Provider:** Ollama (local) + Anthropic API (evaluator)
+  4. **Tools:** Different tool sets per agent
+  5. **Reasoning:** /think vs /no_think modes, chain-of-thought control
 end note
 
 @enduml

@@ -1,4 +1,4 @@
-@startuml level4_hierarchical
+@startuml level2_pipeline
 !theme plain
 skinparam backgroundColor #FEFEFE
 skinparam defaultFontName "Segoe UI"
@@ -6,61 +6,32 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam roundCorner 10
 
-title **Level 4 — Hierarchical Organization**\n//Engagement Manager acts as managing partner with review authority//
+title **Level 2 — Sequential Pipeline with Evaluator**\n//3 specialist agents + evaluator, sequential pipeline, no revision//
 
-|#E3F2FD|Engagement Manager (Managing Partner)|
+|#E3F2FD|Stage 1|
 start
-:Decompose question\ninto workstreams;
-:Delegate tasks to\nspecialist agents;
+:<<Engagement Manager>>\n**qwen3:8b** (Ollama)\n\nDecompose question\ninto workstreams;
+:Output: Analysis Plan;
 
-fork
-  |#E8F5E9|Market Researcher|
-  :Conduct market analysis;
-  :Submit to EM for review;
-fork again
-  |#FFF3E0|Financial Analyst|
-  :Conduct financial analysis;
-  :Submit to EM for review;
-fork again
-  |#FFEBEE|Risk Analyst|
-  :Conduct risk assessment;
-  :Submit to EM for review;
-end fork
+|#E8F5E9|Stage 2|
+:<<Market Researcher>>\n**qwen3:14b** (Ollama)\n\nAnalyze market landscape;
+:Output: Market Analysis;
 
-|#E3F2FD|Engagement Manager (Managing Partner)|
-:Review all intermediate outputs;
+|#F3E5F5|Stage 3|
+:<<Strategy Consultant>>\n**qwen3:32b** (Ollama)\n\nSynthesize all inputs\ninto final recommendation;
+:Output: Consulting Report;
 
-if (Quality sufficient?) then (yes)
-  :Approve and forward\nall analyses;
-else (no)
-  :Send back for revision\nwith specific feedback\ne.g. "Need more competitor detail";
-  note right
-    EM can reject and
-    request rework from
-    any specialist agent
-  end note
-  :Agent revises and resubmits;
-  :Re-review;
-endif
-
-:Forward approved analyses\nto Strategy Consultant;
-
-|#F3E5F5|Strategy Consultant|
-:Synthesize into final report;
-:Submit to EM;
-
-|#E3F2FD|Engagement Manager (Managing Partner)|
-:Final review of report;
-
-if (Report quality OK?) then (yes)
-  :Forward to Evaluator;
-else (no)
-  :Request revision from\nStrategy Consultant;
-endif
-
-|#FFFDE7|Evaluator|
-:Score on 6-criterion rubric;
-:Produce evaluation scorecard;
+|#FFFDE7|Stage 4|
+:<<Evaluator>>\n**qwen3:14b** (Ollama)\n\nScore on 6-criterion rubric;
+:Output: Evaluation Scorecard;
 stop
+
+note right
+  **Level 2 characteristics:**
+  * 3 specialist agents + evaluator
+  * Sequential pipeline, no revision
+  * All models via Ollama
+  * Cumulative data routing
+end note
 
 @enduml

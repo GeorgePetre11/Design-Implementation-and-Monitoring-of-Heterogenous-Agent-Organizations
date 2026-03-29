@@ -46,16 +46,18 @@ package "Storage" #FFF3E0 {
 }
 
 package "Real-Time Transport" #F3E5F5 {
-  component "FastAPI\nWebSocket\nServer" as ws
+  component "FastAPI\nWebSocket +\nSSE Server" as ws
 }
 
-package "Dashboard (React Frontend)" #FFFDE7 {
+package "Dashboard (HTML/JS Frontend)" #FFFDE7 {
   component "Agent Status\nCards" as cards
-  component "Communication\nGraph\n(React Flow)" as graph
+  component "Agent Graph\n(HTML Canvas)" as graph
   component "Live Activity\nLog" as log
-  component "Task Board\n(Kanban)" as kanban
-  component "Metrics Panel\n(Recharts)" as metrics
+  component "Pipeline Progress\n(Status Cards)" as pipeline
+  component "Metrics Panel\n(HTML/JS)" as metrics
   component "Agent Detail\nView" as detail
+  component "SSE Client" as sseclient
+  component "WebSocket\nClient" as wsclient
 }
 
 em --> logger
@@ -68,12 +70,18 @@ ev --> logger
 logger --> db : "persist\nevents"
 logger --> ws : "push\nreal-time"
 
-ws --> cards
-ws --> graph
-ws --> log
-ws --> kanban
-ws --> metrics
-ws --> detail
+ws --> wsclient
+ws --> sseclient
+
+wsclient --> cards
+wsclient --> graph
+wsclient --> log
+wsclient --> pipeline
+wsclient --> metrics
+wsclient --> detail
+
+sseclient --> cards
+sseclient --> log
 
 note bottom of cards
   Real-time status:
@@ -83,9 +91,8 @@ end note
 
 note bottom of graph
   Animated message flow
-  Different layouts per
-  org structure
-  (pipeline / hierarchy / hybrid)
+  Visualizes agent
+  communication patterns
 end note
 
 note bottom of metrics

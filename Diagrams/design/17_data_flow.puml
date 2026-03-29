@@ -6,7 +6,7 @@ skinparam defaultFontSize 11
 skinparam shadowing false
 skinparam roundCorner 10
 
-title **Data Flow & Isolation — What Each Agent Sees**
+title **Data Flow — Cumulative Routing**\n//Each agent receives all prior outputs//
 
 left to right direction
 
@@ -29,35 +29,38 @@ card "Evaluation\nScorecard" as score #FFF9C4
 input --> em
 em --> plan
 
-plan --> mr : "market workstream only"
-plan --> fa : "financial workstream only"
-plan --> ra : "risk workstream only"
-
+plan --> mr
 mr --> mdata
+
+plan --> fa
+mdata --> fa
 fa --> fdata
+
+plan --> ra
+mdata --> ra
+fdata --> ra
 ra --> rdata
 
+plan --> sc
 mdata --> sc
 fdata --> sc
 rdata --> sc
-
 sc --> report
+
 report --> ev
 ev --> score
 
 note as N1
-  **Data Isolation Rules:**
+  **Cumulative Data Routing:**
   ----
-  Market Researcher: sees plan + market workstream
-    //never sees financial data or risk data//
-  Financial Analyst: sees plan + financial workstream
-    //never sees market research or risk data//
-  Risk Analyst: sees plan + risk workstream
-    //never sees market or financial data//
-  Strategy Consultant: sees ALL three analyses
-    //cannot search for new info//
-  Evaluator: sees only the final report
-    //cannot modify anything//
+  MR: sees analysis plan
+  FA: sees plan + market analysis
+  RA: sees plan + market analysis + financial analysis
+  SC: sees plan + all three analyses
+  Evaluator: sees only the consulting report
+  ----
+  //Data accumulates as it flows downstream//
+  //No agent can modify prior outputs//
 end note
 
 @enduml

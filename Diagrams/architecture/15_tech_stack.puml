@@ -10,15 +10,14 @@ skinparam componentStyle rectangle
 title **Technology Stack — Component Architecture**
 
 package "Frontend" #FFFDE7 {
-  component "React" as react
-  component "Recharts\n(Metrics)" as recharts
-  component "React Flow\n(Agent Graph)" as reactflow
+  component "HTML/JS\n(Plain)" as htmljs
+  component "SSE Client" as sseclient
   component "WebSocket\nClient" as wsclient
 }
 
 package "Backend / API" #E8F5E9 {
   component "FastAPI" as fastapi
-  component "WebSocket\nEndpoint" as wsserver
+  component "FastAPI\nSSE + WebSocket\nServer" as rtserver
   component "REST API\n(Runs, Results)" as rest
 }
 
@@ -37,21 +36,19 @@ package "Agent Runtime" #F3E5F5 {
 }
 
 package "LLM Clients" #FFF3E0 {
-  component "anthropic\nSDK" as anth
-  component "openai\nSDK" as oai
-  component "mistralai\nSDK" as mist
+  component "ollama\nSDK" as ollama
+  component "anthropic\nSDK\n(L4 Evaluator)" as anth
 }
 
 package "Data Layer" #FFEBEE {
   database "SQLite" as sqlite
 }
 
-wsclient <--> wsserver : "WebSocket"
-react --> recharts
-react --> reactflow
-rest <-- react : "HTTP"
+wsclient <--> rtserver : "WebSocket"
+sseclient <-- rtserver : "SSE"
+rest <-- htmljs : "HTTP"
 
-fastapi --> wsserver
+fastapi --> rtserver
 fastapi --> rest
 
 workflow --> tasker
@@ -62,9 +59,8 @@ agentbase --> prompts
 agentbase --> parsers
 workflow --> evlog
 
+agentbase --> ollama
 agentbase --> anth
-agentbase --> oai
-agentbase --> mist
 
 evlog --> sqlite
 rest --> sqlite

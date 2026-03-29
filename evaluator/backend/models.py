@@ -21,7 +21,7 @@ class EvaluationRequest(BaseModel):
         ..., description="The full consulting report (Markdown) to evaluate."
     )
     level: int = Field(
-        ..., ge=1, le=4, description="Which complexity level produced this report."
+        ..., ge=0, le=4, description="Which complexity level produced this report (0 = unknown)."
     )
     session_id: str | None = None
 

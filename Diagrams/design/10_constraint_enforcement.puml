@@ -32,8 +32,9 @@ rectangle "**Layer 2: Tool Restrictions** (Hard Constraint)" as L2 #E8F5E9 {
     specific tool functions.
     ----
     //Market Researcher: search_web(), read_document()//
-    //Financial Analyst: calculate(), create_projection()//
-    //Cannot call tools outside their set//
+    //Financial Analyst: no tools (analysis from context)//
+    //MR: search_web(), read_document()//
+    //RA: search_web(), read_document(), assess_risk()//
     ----
     **Enforcement:** API-level tool filtering
     **Strength:** Hard — physically impossible
@@ -57,14 +58,14 @@ rectangle "**Layer 3: Output Schemas** (Hard Constraint)" as L3 #FFF3E0 {
 rectangle "**Layer 4: Orchestrator Routing** (Hard Constraint)" as L4 #F3E5F5 {
   note right
     Central orchestrator controls data flow.
-    Each agent only sees relevant data.
+    Data is cumulative: each agent builds on prior outputs.
     ----
-    //Market Researcher never sees financial data//
-    //Risk Analyst never sees market research tools//
+    //Each agent receives all preceding outputs//
     //Pure Python logic — no LLM involved//
+    //Orchestrator decides execution order and data passed//
     ----
-    **Enforcement:** Code-level data isolation
-    **Strength:** Hard — data never exposed
+    **Enforcement:** Code-level data routing
+    **Strength:** Hard — data never exposed out of order
   end note
 }
 

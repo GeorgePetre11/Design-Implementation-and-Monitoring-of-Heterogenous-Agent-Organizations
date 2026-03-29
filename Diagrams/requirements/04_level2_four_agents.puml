@@ -16,7 +16,8 @@ start
 :Decompose question into\nworkstreams & sub-questions;
 :Create analysis plan;
 note right
-  **Tools:** read_client_request()
+  **Model:** qwen3:8b (Ollama)
+  **Tools:** none (structured decomposition)
   **Cannot:** research, analyze, write report
 end note
 
@@ -25,8 +26,8 @@ end note
 :Investigate market landscape;
 :Produce structured findings\n(competitors, trends, segments);
 note right
-  **Tools:** search_web(), read_document(),
-  summarize_source()
+  **Model:** qwen3:14b (Ollama)
+  **Tools:** search_web(), read_document()
 end note
 
 |#F3E5F5|Strategy Consultant|
@@ -34,13 +35,17 @@ end note
 :Synthesize into recommendation;
 :Write final consulting report\nwith options & tradeoffs;
 note right
-  **Tools:** read_market_research()
+  **Model:** qwen3:32b (Ollama)
+  **Tools:** reads all prior analyses from context
   **Cannot:** search for new info
 end note
 
 |#FFF3E0|Evaluator|
 :Score report on rubric\n(completeness, accuracy, coherence,\nstructure, actionability, critical depth);
 :Produce evaluation scorecard;
+note right
+  **Model:** qwen3:14b (Ollama)
+end note
 
 |Client|
 :Receive report + evaluation;

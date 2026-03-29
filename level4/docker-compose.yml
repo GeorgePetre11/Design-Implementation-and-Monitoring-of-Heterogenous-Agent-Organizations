@@ -1,0 +1,29 @@
+services:
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - ENGAGEMENT_MANAGER_MODEL=qwen3:8b
+      - MARKET_RESEARCHER_MODEL=qwen3:14b
+      - FINANCIAL_ANALYST_MODEL=qwen3:14b
+      - RISK_ANALYST_MODEL=qwen3:14b
+      - STRATEGY_CONSULTANT_MODEL=qwen3.5:27b
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "3000:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    restart: unless-stopped

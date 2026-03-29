@@ -226,20 +226,26 @@ class Evaluator:
         Returns:
             Parsed EvaluationScorecard as a dict.
         """
-        user_prompt = (
-            f"COMPLEXITY LEVEL: Level {level}\n"
-            f"(Level 1 = single generic agent, no tools. "
-            f"Level 2 = 3 specialized agents. "
-            f"Level 3 = 5 specialized agents with web search and financial tools. "
-            f"Level 4 = 6 agents with organizational workflows.)\n\n"
-            f"ORIGINAL CLIENT QUESTION:\n{question}\n\n"
+        parts = []
+        if level and level > 0:
+            parts.append(
+                f"COMPLEXITY LEVEL: Level {level}\n"
+                f"(Level 1 = single generic agent, no tools. "
+                f"Level 2 = 3 specialized agents. "
+                f"Level 3 = 5 specialized agents with web search and financial tools. "
+                f"Level 4 = 6 agents with organizational workflows.)\n"
+            )
+        if question and question != "(extracted from report)":
+            parts.append(f"ORIGINAL CLIENT QUESTION:\n{question}\n")
+        parts.append(
             f"CONSULTING REPORT TO EVALUATE:\n"
             f"{'=' * 60}\n"
             f"{report}\n"
             f"{'=' * 60}\n\n"
-            f"Evaluate this Level {level} consulting report against all six "
+            f"Evaluate this consulting report against all six "
             f"criteria in your rubric. Be rigorous and honest. Justify every score."
         )
+        user_prompt = "\n".join(parts)
 
         last_err = None
         for attempt in range(MAX_RETRIES):

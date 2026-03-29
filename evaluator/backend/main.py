@@ -18,8 +18,10 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+import pdfplumber
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from evaluator import Evaluator, EVALUATOR_MODEL
@@ -141,6 +143,46 @@ def evaluate_file(request: FileEvaluationRequest):
     return evaluate(eval_request)
 
 
+@app.post("/evaluate/upload")
+async def evaluate_upload(file: UploadFile = File(...)):
+    """Evaluate a consulting report uploaded as a PDF or text file."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided.")
+
+    contents = await file.read()
+    suffix = Path(file.filename).suffix.lower()
+
+    if suffix == ".pdf":
+        import io
+        try:
+            with pdfplumber.open(io.BytesIO(contents)) as pdf:
+                report = "\n\n".join(
+                    page.extract_text() or "" for page in pdf.pages
+                )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Failed to read PDF: {exc}"
+            )
+    elif suffix in (".md", ".txt", ".markdown"):
+        report = contents.decode("utf-8", errors="replace")
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {suffix}. Use .pdf, .md, or .txt",
+        )
+
+    report = report.strip()
+    if not report:
+        raise HTTPException(status_code=400, detail="File contains no text.")
+
+    eval_request = EvaluationRequest(
+        question="(extracted from report)",
+        report=report,
+        level=0,
+    )
+    return evaluate(eval_request)
+
+
 @app.get("/results")
 def list_results():
     """List all saved evaluation results, sorted by most recent."""
@@ -169,3 +211,18 @@ def get_result(evaluation_id: str):
         raise HTTPException(status_code=404, detail="Evaluation not found.")
     with open(path, encoding="utf-8") as f:
         return json.load(f)
+
+
+# ---------------------------------------------------------------------------
+# Serve frontend static files (must be LAST — catches all unmatched routes)
+# ---------------------------------------------------------------------------
+
+FRONTEND_DIR = Path(__file__).parent.parent / "frontend"
+if FRONTEND_DIR.exists():
+    from fastapi.responses import FileResponse
+
+    @app.get("/")
+    def serve_index():
+        return FileResponse(FRONTEND_DIR / "index.html")
+
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
