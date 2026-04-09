@@ -5,6 +5,8 @@ Defines the input request and the structured output schemas for each agent.
 These schemas enforce output structure (constraint layer #3).
 
 Level 4 adds ReviewResult and RevisionInfo models for the hybrid workflow.
+(The Evaluator runs in a separate standalone app powered by Kimi 2.5
+and defines its own schemas.)
 """
 
 from pydantic import BaseModel
@@ -112,28 +114,6 @@ class RiskAssessment(BaseModel):
     risk_summary: str
     risks: list[Risk]
     key_risk_factors: list[str]
-
-
-# ---------------------------------------------------------------------------
-# Evaluator output
-# ---------------------------------------------------------------------------
-
-class CriterionScore(BaseModel):
-    score: int             # 1-10
-    justification: str
-
-
-class EvaluationScorecard(BaseModel):
-    completeness: CriterionScore
-    accuracy: CriterionScore
-    coherence: CriterionScore
-    structure: CriterionScore
-    actionability: CriterionScore
-    critical_depth: CriterionScore
-    overall_score: float
-    summary: str
-    strengths: list[str]
-    weaknesses: list[str]
 
 
 # ---------------------------------------------------------------------------

@@ -41,16 +41,12 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    evaluator_status = "available" if agents.Evaluator().available else "unavailable (no API key)"
     return {
         "status": "ok",
         "level": 4,
         "workflow": "hybrid_hierarchical",
         "agents": agents.AGENT_MODELS,
-        "evaluator": {
-            "model": "claude-opus-4-6",
-            "status": evaluator_status,
-        },
+        # The Evaluator runs in a separate standalone app powered by Kimi 2.5.
     }
 
 

@@ -1,0 +1,12 @@
+services:
+  evaluator-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8100:8100"
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - EVALUATOR_MODEL=deepseek-r1:70b
+    volumes:
+      - ./results:/app/../results

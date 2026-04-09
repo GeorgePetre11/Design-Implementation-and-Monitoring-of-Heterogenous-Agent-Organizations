@@ -222,8 +222,8 @@
 </div>
 
 <script>
-const API = "http://localhost:8000";
-const WS_URL = "ws://localhost:8000/ws";
+const API = "http://localhost:8004";
+const WS_URL = "ws://localhost:8004/ws";
 
 const AGENTS = [
   { key: "engagement_manager",  icon: "EM", label: "Engagement Manager",  color: "#a78bfa" },
@@ -231,7 +231,7 @@ const AGENTS = [
   { key: "financial_analyst",   icon: "FA", label: "Financial Analyst",   color: "#f59e0b" },
   { key: "risk_analyst",        icon: "RA", label: "Risk Analyst",        color: "#f87171" },
   { key: "strategy_consultant", icon: "SC", label: "Strategy Consultant", color: "#e879f9" },
-  { key: "evaluator",           icon: "EV", label: "Evaluator",           color: "#22d3ee" },
+  // Evaluator runs in a separate standalone app powered by Kimi 2.5.
 ];
 
 let ws = null;

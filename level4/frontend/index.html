@@ -136,29 +136,60 @@
     #report-output em { color: #94a3b8; }
     #report-output hr { border: none; border-top: 1px solid #334155; margin: 1rem 0; }
 
-    /* -- Evaluator scorecard -- */
-    #evaluator-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
-    .scorecard {
-      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
-      padding: 1.2rem 1.5rem;
+    /* -- Evaluator scorecard (Kimi K2.5 external judge) -- */
+    #evaluation-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
+    .eval-header {
+      display: flex; align-items: center; gap: 0.6rem;
+      background: #1e293b; border: 1px solid #334155; border-radius: 10px 10px 0 0;
+      padding: 0.7rem 1rem;
     }
-    .scorecard h2 { font-size: 0.85rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.8rem; }
-    .score-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.4rem 0; border-bottom: 1px solid #1f293744;
+    .eval-header h2 { font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+    .eval-header .eval-badge {
+      font-size: 0.7rem; color: #c4b5fd; background: #2e1065; border: 1px solid #4c1d95;
+      padding: 0.15rem 0.55rem; border-radius: 999px;
     }
-    .score-row .label { font-size: 0.8rem; color: #cbd5e1; }
-    .score-row .score-val { font-size: 0.9rem; font-weight: 700; min-width: 36px; text-align: right; }
-    .score-row .bar-bg { flex: 1; background: #0f1117; border-radius: 3px; height: 6px; margin: 0 0.8rem; overflow: hidden; }
-    .score-row .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
-    .overall-score { text-align: center; margin-top: 1rem; }
-    .overall-score .big { font-size: 2rem; font-weight: 800; }
-    .overall-score .out-of { font-size: 0.85rem; color: #64748b; }
-    .score-summary { margin-top: 0.8rem; font-size: 0.82rem; color: #cbd5e1; line-height: 1.5; }
-    .score-list { margin-top: 0.5rem; font-size: 0.78rem; }
-    .score-list h4 { font-size: 0.75rem; color: #7dd3fc; text-transform: uppercase; margin: 0.5rem 0 0.2rem; }
-    .score-list ul { padding-left: 1.2rem; color: #94a3b8; }
-    .score-list li { margin-bottom: 0.15rem; }
+    .eval-body {
+      background: #0f1117; border: 1px solid #334155; border-top: none;
+      border-radius: 0 0 10px 10px; padding: 1.2rem 1.4rem;
+    }
+    .eval-overall {
+      display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.8rem;
+    }
+    .eval-overall .score { font-size: 2rem; font-weight: 700; color: #4ade80; }
+    .eval-overall .score.low { color: #f87171; }
+    .eval-overall .score.mid { color: #fbbf24; }
+    .eval-overall .label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+    .eval-summary { font-size: 0.85rem; color: #cbd5e1; font-style: italic; margin-bottom: 1rem; line-height: 1.6; }
+    .eval-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 0.7rem; margin-bottom: 1rem;
+    }
+    .eval-criterion {
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      padding: 0.7rem 0.9rem;
+    }
+    .eval-criterion-head {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;
+    }
+    .eval-criterion-name { font-size: 0.78rem; font-weight: 600; color: #7dd3fc; text-transform: capitalize; }
+    .eval-criterion-score { font-size: 0.95rem; font-weight: 700; color: #4ade80; }
+    .eval-criterion-score.low { color: #f87171; }
+    .eval-criterion-score.mid { color: #fbbf24; }
+    .eval-criterion-bar { height: 4px; background: #0f1117; border-radius: 2px; overflow: hidden; margin-bottom: 0.4rem; }
+    .eval-criterion-bar-fill { height: 100%; background: #4ade80; transition: width 0.5s; }
+    .eval-criterion-bar-fill.low { background: #f87171; }
+    .eval-criterion-bar-fill.mid { background: #fbbf24; }
+    .eval-criterion-just { font-size: 0.74rem; color: #94a3b8; line-height: 1.5; }
+    .eval-dims { display: flex; gap: 1rem; font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.8rem; }
+    .eval-dims strong { color: #e2e8f0; }
+    .eval-issues { margin-top: 0.6rem; }
+    .eval-issues h4 { font-size: 0.72rem; color: #f87171; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
+    .eval-issues ul { padding-left: 1.2rem; }
+    .eval-issues li { font-size: 0.76rem; color: #cbd5e1; margin-bottom: 0.25rem; line-height: 1.5; }
+    .eval-pending, .eval-error {
+      font-size: 0.82rem; color: #94a3b8; padding: 1rem; text-align: center;
+    }
+    .eval-error { color: #f87171; }
 
     @media (max-width: 700px) { body { padding: 1rem 0.5rem; } }
   </style>
@@ -242,12 +273,18 @@
   <div id="report-output"></div>
 </div>
 
-<div id="evaluator-section">
-  <div class="scorecard" id="scorecard"></div>
+<div id="evaluation-section">
+  <div class="eval-header">
+    <h2>External Quality Evaluation</h2>
+    <span class="eval-badge" id="eval-model-badge">Kimi K2.5</span>
+  </div>
+  <div class="eval-body" id="eval-body">
+    <div class="eval-pending">Waiting for external evaluator…</div>
+  </div>
 </div>
 
 <script>
-const API = "http://localhost:8000";
+const API = "http://localhost:8004";
 let reportRaw = "";
 let tokenCount = 0;
 let revisionCount = 0;
@@ -282,14 +319,78 @@ function renderMarkdown(text) {
     .replace(/^- (.+)$/gm, '&bull; $1')
     .replace(/\n/g, '<br>');
 }
-function scoreColor(s) {
-  if (s >= 8) return "#22c55e"; if (s >= 6) return "#eab308"; if (s >= 4) return "#f97316"; return "#ef4444";
-}
 function riskColor(level) {
   if (level === "critical") return "#ef4444";
   if (level === "high") return "#f87171";
   if (level === "medium") return "#fbbf24";
   return "#4ade80";
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+function scoreClass(score) {
+  if (score >= 7) return "";       // green (default)
+  if (score >= 4) return "mid";    // amber
+  return "low";                    // red
+}
+
+function renderScorecard(sc, model, elapsed) {
+  if (!sc) {
+    document.getElementById("eval-body").innerHTML =
+      '<div class="eval-error">Evaluator returned no scorecard.</div>';
+    return;
+  }
+  if (model) document.getElementById("eval-model-badge").textContent = model;
+
+  const overall = Number(sc.overall_score ?? 0);
+  const cls = scoreClass(overall);
+  const criteria = sc.evaluation || {};
+  const order = ["completeness", "accuracy", "coherence", "structure", "actionability", "critical_depth"];
+
+  let grid = "";
+  for (const key of order) {
+    const c = criteria[key];
+    if (!c) continue;
+    const s = Number(c.score ?? 0);
+    const sCls = scoreClass(s);
+    const pct = Math.max(0, Math.min(100, (s / 10) * 100));
+    grid += `
+      <div class="eval-criterion">
+        <div class="eval-criterion-head">
+          <span class="eval-criterion-name">${key.replace(/_/g, " ")}</span>
+          <span class="eval-criterion-score ${sCls}">${s}/10</span>
+        </div>
+        <div class="eval-criterion-bar"><div class="eval-criterion-bar-fill ${sCls}" style="width:${pct}%"></div></div>
+        <div class="eval-criterion-just">${escapeHtml(c.justification || "")}</div>
+      </div>`;
+  }
+
+  let issuesHtml = "";
+  if (Array.isArray(sc.critical_issues) && sc.critical_issues.length) {
+    issuesHtml = '<div class="eval-issues"><h4>Critical Issues</h4><ul>' +
+      sc.critical_issues.map(i => `<li>${escapeHtml(i)}</li>`).join("") +
+      '</ul></div>';
+  }
+
+  const elapsedStr = elapsed != null ? ` · ${elapsed}s` : "";
+
+  document.getElementById("eval-body").innerHTML = `
+    <div class="eval-overall">
+      <span class="score ${cls}">${overall.toFixed(1)}</span>
+      <span class="label">Overall Score / 10${elapsedStr}</span>
+    </div>
+    <div class="eval-summary">${escapeHtml(sc.summary || "")}</div>
+    <div class="eval-dims">
+      <div>Strongest: <strong>${escapeHtml((sc.strongest_dimension || "").replace(/_/g, " "))}</strong></div>
+      <div>Weakest: <strong>${escapeHtml((sc.weakest_dimension || "").replace(/_/g, " "))}</strong></div>
+    </div>
+    <div class="eval-grid">${grid}</div>
+    ${issuesHtml}
+  `;
 }
 
 function renderAnalysisPlan(data) {
@@ -378,38 +479,7 @@ function renderRiskAssessment(data) {
   return h;
 }
 
-function renderScorecard(data) {
-  if (data.skipped) {
-    return `<h2>Evaluator</h2><p style="color:#64748b">Skipped: ${data.reason}</p>`;
-  }
-  const criteria = [
-    { key: "completeness", label: "Completeness", weight: "20%" },
-    { key: "accuracy", label: "Accuracy", weight: "20%" },
-    { key: "coherence", label: "Coherence", weight: "15%" },
-    { key: "structure", label: "Structure", weight: "15%" },
-    { key: "actionability", label: "Actionability", weight: "15%" },
-    { key: "critical_depth", label: "Critical Depth", weight: "15%" },
-  ];
-  let h = `<h2>Evaluator Scorecard <span style="font-size:0.7rem;color:#a78bfa">(Claude Opus 4.6)</span></h2>`;
-  h += `<div class="overall-score"><span class="big" style="color:${scoreColor(data.overall_score)}">${data.overall_score?.toFixed(1) || "?"}</span><span class="out-of"> / 10</span></div>`;
-  for (const c of criteria) {
-    const d = data[c.key];
-    if (!d) continue;
-    const color = scoreColor(d.score);
-    h += `<div class="score-row">`;
-    h += `<span class="label">${c.label} <span style="color:#475569;font-size:0.7rem">(${c.weight})</span></span>`;
-    h += `<div class="bar-bg"><div class="bar-fill" style="width:${d.score * 10}%;background:${color}"></div></div>`;
-    h += `<span class="score-val" style="color:${color}">${d.score}</span>`;
-    h += `</div>`;
-    if (d.justification) h += `<div style="font-size:0.72rem;color:#64748b;padding:0.15rem 0 0.4rem;margin-left:0.5rem">${d.justification}</div>`;
-  }
-  if (data.summary) h += `<div class="score-summary">${data.summary}</div>`;
-  h += `<div class="score-list">`;
-  if (data.strengths?.length) { h += `<h4>Strengths</h4><ul>`; for (const s of data.strengths) h += `<li style="color:#4ade80">${s}</li>`; h += `</ul>`; }
-  if (data.weaknesses?.length) { h += `<h4>Weaknesses</h4><ul>`; for (const w of data.weaknesses) h += `<li style="color:#f87171">${w}</li>`; h += `</ul>`; }
-  h += `</div>`;
-  return h;
-}
+// Evaluator runs in a separate standalone app powered by Kimi 2.5.
 
 const AGENT_SECTIONS = ["engagement_manager", "market_researcher", "financial_analyst", "risk_analyst"];
 
@@ -422,7 +492,6 @@ async function startAnalysis() {
   document.getElementById("m-session").textContent = "—";
   document.getElementById("m-revisions").textContent = "0";
   document.getElementById("report-output").innerHTML = "";
-  document.getElementById("scorecard").innerHTML = "";
   AGENT_SECTIONS.forEach(id => {
     document.getElementById("section-" + id).style.display = "none";
     document.getElementById("content-" + id).innerHTML = "";
@@ -430,7 +499,8 @@ async function startAnalysis() {
     document.getElementById("review-" + id).className = "review-badge";
   });
   document.getElementById("report-section").style.display = "none";
-  document.getElementById("evaluator-section").style.display = "none";
+  document.getElementById("evaluation-section").style.display = "none";
+  document.getElementById("eval-body").innerHTML = '<div class="eval-pending">Waiting for external evaluator…</div>';
   document.getElementById("submit-btn").disabled = true;
   setStatus("Starting hybrid pipeline...", "running");
   startTime = Date.now();
@@ -546,9 +616,19 @@ function handleEvent(msg) {
       document.getElementById("report-output").innerHTML = renderMarkdown(reportRaw);
       document.getElementById("report-output").scrollTop = document.getElementById("report-output").scrollHeight;
       break;
-    case "evaluator_output":
-      document.getElementById("evaluator-section").style.display = "block";
-      document.getElementById("scorecard").innerHTML = renderScorecard(msg.output);
+    case "evaluation_start":
+      document.getElementById("evaluation-section").style.display = "block";
+      document.getElementById("eval-body").innerHTML =
+        '<div class="eval-pending">Kimi K2.5 is scoring the report…</div>';
+      setStatus("External evaluator scoring report...", "reviewing");
+      break;
+    case "evaluation":
+      renderScorecard(msg.scorecard, msg.model, msg.elapsed);
+      break;
+    case "evaluation_error":
+      document.getElementById("evaluation-section").style.display = "block";
+      document.getElementById("eval-body").innerHTML =
+        '<div class="eval-error">Evaluator unavailable: ' + escapeHtml(msg.error || "unknown error") + '</div>';
       break;
     case "error":
       setStatus("Error: " + msg.error, "error");

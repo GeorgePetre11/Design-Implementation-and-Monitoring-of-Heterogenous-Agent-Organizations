@@ -1,15 +1,16 @@
 """
 Level 4 — Hybrid Organizational Workflow (BIS).
 
-Five specialized agents + Claude Opus evaluator, operating in a
-hierarchical hybrid structure:
+Five specialized agents operating in a hierarchical hybrid structure:
 
   1. Engagement Manager  — decomposes AND reviews every intermediate output
   2. Market Researcher   — investigates the market landscape
   3. Financial Analyst   — handles all quantitative/financial analysis
   4. Risk Analyst        — identifies and assesses risks
   5. Strategy Consultant — synthesizes all inputs into a consulting report
-  6. Evaluator           — Claude Opus 4.6 (API) scores the final report
+
+(The Evaluator runs in a separate standalone app powered by Kimi 2.5
+and is not part of this backend.)
 
 Key differences from Level 3:
   - The EM acts as a Managing Partner: reviews intermediate outputs and can
@@ -18,7 +19,6 @@ Key differences from Level 3:
   - Stricter anti-hallucination prompts with mandatory source tracing.
   - Financial Analyst switched from DeepSeek R1 to Qwen 3 14B.
   - Strategy Consultant upgraded to Qwen 3.5 27B (256K context).
-  - Evaluator is Claude Opus 4.6 via the Anthropic API.
 
 Models (from level4_models.md):
   Engagement Manager  -> qwen3:8b          (fast decomposition + review)
@@ -26,7 +26,6 @@ Models (from level4_models.md):
   Financial Analyst   -> qwen3:14b         (/think for math, /no_think for extraction)
   Risk Analyst        -> qwen3:14b         (/think for analytical reasoning)
   Strategy Consultant -> qwen3.5:27b       (256K context, superior writing)
-  Evaluator           -> Claude Opus 4.6   (Anthropic API, independent judge)
 """
 
 import json
@@ -1071,87 +1070,6 @@ class StrategyConsultant:
             stream=True,
         )
         yield from _filter_think_stream(stream)
-
-
-class Evaluator:
-    """Independent quality judge using Claude Opus 4.6 via the Anthropic API.
-
-    Level 4 change: switched from local DeepSeek R1 70B to cloud Claude Opus.
-    Falls back gracefully if no API key is configured.
-    """
-
-    name = "evaluator"
-    display_name = "Evaluator"
-    model = "claude-opus-4-6"
-
-    EVALUATION_PROMPT = """\
-You are an independent Evaluator for an AI consulting firm. You must \
-objectively score the quality of the consulting report below.
-
-ORIGINAL CLIENT QUESTION:
-{question}
-
-CONSULTING REPORT:
-{report}
-
-COMPLEXITY LEVEL: 4 (Five specialized agents with hybrid hierarchical \
-workflow, revision loops, and anti-hallucination enforcement)
-
-Score the report on each criterion (1-10 scale). A score of 7 means \
-genuinely good -- do not grade inflate.
-
-CRITERIA AND WEIGHTS:
-1. Completeness (20%) -- Are all aspects of the business question addressed?
-2. Accuracy (20%) -- Are claims supported by data/sources? Are numbers realistic?
-3. Coherence (15%) -- Does the analysis flow logically from data to recommendation?
-4. Structure (15%) -- Is it well-organized like a professional consulting deliverable?
-5. Actionability (15%) -- Are recommendations specific enough to act on?
-6. Critical Depth (15%) -- Are risks, limitations, and counterarguments addressed?
-
-Respond with ONLY this JSON:
-{{
-  "completeness": {{"score": <1-10>, "justification": "..."}},
-  "accuracy": {{"score": <1-10>, "justification": "..."}},
-  "coherence": {{"score": <1-10>, "justification": "..."}},
-  "structure": {{"score": <1-10>, "justification": "..."}},
-  "actionability": {{"score": <1-10>, "justification": "..."}},
-  "critical_depth": {{"score": <1-10>, "justification": "..."}},
-  "overall_score": <weighted average as float>,
-  "summary": "2-3 sentence overall assessment",
-  "strengths": ["strength 1", "strength 2", "strength 3"],
-  "weaknesses": ["weakness 1", "weakness 2", "weakness 3"]
-}}\
-"""
-
-    def __init__(self):
-        self._client = None
-        api_key = os.getenv("ANTHROPIC_API_KEY", "")
-        if api_key:
-            try:
-                import anthropic
-                self._client = anthropic.Anthropic(api_key=api_key)
-            except ImportError:
-                print("[evaluator] anthropic SDK not installed", flush=True)
-
-    @property
-    def available(self) -> bool:
-        return self._client is not None
-
-    def run(self, question: str, report: str) -> dict:
-        """Score the report using Claude Opus 4.6. Returns the scorecard dict."""
-        if not self._client:
-            return {"error": "Evaluator not available: ANTHROPIC_API_KEY not set or anthropic SDK missing"}
-
-        prompt = self.EVALUATION_PROMPT.format(question=question, report=report)
-
-        response = self._client.messages.create(
-            model=self.model,
-            max_tokens=2000,
-            messages=[{"role": "user", "content": prompt}],
-        )
-
-        text = response.content[0].text
-        return extract_json(text)
 
 
 # ---------------------------------------------------------------------------

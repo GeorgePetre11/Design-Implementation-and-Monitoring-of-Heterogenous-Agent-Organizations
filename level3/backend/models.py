@@ -4,8 +4,9 @@ Level 3 — Pydantic models for request/response schemas.
 Defines the input request and the structured output schemas for each agent.
 These schemas enforce output structure (constraint layer #3).
 
-Level 3 adds Financial Analyst and Risk Analyst output schemas,
-plus the Evaluator scorecard.
+Level 3 adds Financial Analyst and Risk Analyst output schemas.
+(The Evaluator runs in a separate standalone app powered by Kimi 2.5
+and defines its own schemas.)
 """
 
 from pydantic import BaseModel
@@ -111,18 +112,3 @@ class RiskAssessment(BaseModel):
     key_risk_factors: list[str]
 
 
-# ---------------------------------------------------------------------------
-# Evaluator output
-# ---------------------------------------------------------------------------
-
-class CriterionScore(BaseModel):
-    score: int             # 1-10
-    justification: str
-
-
-class EvaluationScorecard(BaseModel):
-    scores: dict[str, CriterionScore]   # keys: completeness, accuracy, etc.
-    overall_score: float
-    summary: str
-    strengths: list[str]
-    weaknesses: list[str]

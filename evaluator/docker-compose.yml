@@ -1,12 +1,13 @@
 services:
-  evaluator-backend:
+
+  evaluator:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8100:8100"
+      - "8005:8000"
     environment:
-      - OLLAMA_HOST=http://host.docker.internal:11434
-      - EVALUATOR_MODEL=deepseek-r1:70b
-    volumes:
-      - ./results:/app/../results
+      - EVALUATOR_API_KEY=${EVALUATOR_API_KEY:-}
+      - EVALUATOR_BASE_URL=${EVALUATOR_BASE_URL:-https://api.moonshot.ai/v1}
+      - EVALUATOR_MODEL=${EVALUATOR_MODEL:-kimi-k2.5}
+    restart: unless-stopped

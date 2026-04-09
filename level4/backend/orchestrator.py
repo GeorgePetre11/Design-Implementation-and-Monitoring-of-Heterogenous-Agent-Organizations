@@ -14,15 +14,20 @@ in a hierarchical hybrid structure:
     -> FA analyzes financials  -> EM reviews -> (revision?) -> approved
     -> RA assesses risks       -> EM reviews -> (revision?) -> approved
     -> SC writes report        -> EM reviews -> (revision?) -> approved
-    -> Evaluator (Claude API)  -> scores the report
+
+(The Evaluator runs in a separate standalone app powered by Kimi 2.5
+and is not invoked from this orchestrator.)
 
 This module implements constraint layer #4 (orchestrator routing) plus
 the hierarchical review loop that makes Level 4 distinct from Level 3.
 """
 
 import json
+import os
 import time
 from typing import Generator
+
+import requests
 
 from agents import (
     EngagementManager,
@@ -30,7 +35,6 @@ from agents import (
     FinancialAnalyst,
     RiskAnalyst,
     StrategyConsultant,
-    Evaluator,
     strip_think_tags,
 )
 import monitor
@@ -38,6 +42,11 @@ import state
 
 MAX_RETRIES = 2       # retry on JSON parse failure
 MAX_REVISIONS = 1     # max EM-requested revisions per agent
+
+# Standalone evaluator service (Kimi K2.5 judge). Optional -- if unreachable,
+# the pipeline still succeeds and simply emits no evaluation event.
+EVALUATOR_URL = os.getenv("EVALUATOR_URL", "http://host.docker.internal:8005")
+EVALUATOR_TIMEOUT = int(os.getenv("EVALUATOR_TIMEOUT", "180"))
 
 
 def _sse(data: dict) -> str:
@@ -70,7 +79,6 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
       revision_start -- an agent begins a revision pass
       token          -- a streaming token from the Strategy Consultant
       agent_complete -- a streaming agent finished
-      evaluator_output -- evaluator scorecard
       error          -- an error occurred
       done           -- the full pipeline is complete
     """
@@ -80,7 +88,6 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     fa = FinancialAnalyst()
     ra = RiskAnalyst()
     sc = StrategyConsultant()
-    ev = Evaluator()
 
     # Initialize pipeline state for the dashboard
     agent_configs = [
@@ -90,8 +97,6 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
         {"name": ra.name, "display_name": ra.display_name, "model": ra.model},
         {"name": sc.name, "display_name": sc.display_name, "model": sc.model},
     ]
-    if ev.available:
-        agent_configs.append({"name": ev.name, "display_name": ev.display_name, "model": ev.model})
 
     state.reset_state(session_id, question, agent_configs)
 
@@ -554,52 +559,44 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     yield _sse({"type": "agent_complete", "agent": sc.name, "elapsed": elapsed})
 
     # ------------------------------------------------------------------
-    # Phase 6: Evaluator (Claude Opus 4.6 API) -- score the report
+    # Phase 6: External Evaluator (Kimi K2.5, standalone service)
     # ------------------------------------------------------------------
-    if ev.available:
-        state.update_agent(ev.name, "working")
-        yield _sse({
-            "type": "agent_start",
-            "agent": ev.name,
-            "display_name": ev.display_name,
-            "model": ev.model,
-        })
-        monitor.log_event(session_id, "agent_start", agent_name=ev.display_name, data={"model": ev.model})
+    yield _sse({"type": "evaluation_start"})
+    monitor.log_event(session_id, "evaluator_request", data={"url": EVALUATOR_URL})
 
-        try:
-            t0 = time.time()
-            scorecard = ev.run(question, full_report)
-            elapsed_ev = round(time.time() - t0, 2)
-        except Exception as exc:
-            state.update_agent(ev.name, "error", error=str(exc))
-            monitor.log_event(session_id, "agent_error", agent_name=ev.display_name, data={"error": str(exc)})
-            yield _sse({"type": "error", "agent": ev.name, "error": str(exc)})
-            # Don't fail the whole pipeline for evaluator errors
-            scorecard = None
-            elapsed_ev = 0
+    try:
+        t0 = time.time()
+        resp = requests.post(
+            f"{EVALUATOR_URL}/evaluate",
+            json={
+                "question": question,
+                "report": full_report,
+                "session_id": session_id,
+                "level": 4,
+            },
+            timeout=EVALUATOR_TIMEOUT,
+        )
+        resp.raise_for_status()
+        eval_payload = resp.json()
+        eval_elapsed = round(time.time() - t0, 2)
 
-        if scorecard and "error" not in scorecard:
-            state.update_agent(ev.name, "approved", elapsed=elapsed_ev, output=scorecard)
-            monitor.log_event(
-                session_id, "agent_complete",
-                agent_name=ev.display_name,
-                data={"elapsed": elapsed_ev, "overall_score": scorecard.get("overall_score")},
-            )
-            yield _sse({
-                "type": "evaluator_output",
-                "agent": ev.name,
-                "output": scorecard,
-                "elapsed": elapsed_ev,
-            })
-        elif scorecard:
-            yield _sse({"type": "error", "agent": ev.name, "error": scorecard.get("error", "Unknown error")})
-    else:
+        monitor.log_event(
+            session_id, "evaluator_complete",
+            data={
+                "overall_score": eval_payload.get("scorecard", {}).get("overall_score"),
+                "elapsed": eval_elapsed,
+            },
+        )
         yield _sse({
-            "type": "evaluator_output",
-            "agent": "evaluator",
-            "output": {"skipped": True, "reason": "ANTHROPIC_API_KEY not configured"},
-            "elapsed": 0,
+            "type": "evaluation",
+            "scorecard": eval_payload.get("scorecard"),
+            "model": eval_payload.get("model"),
+            "elapsed": eval_elapsed,
         })
+    except requests.RequestException as exc:
+        # Evaluator is optional -- log + emit a soft error, don't fail the pipeline.
+        monitor.log_event(session_id, "evaluator_error", data={"error": str(exc)})
+        yield _sse({"type": "evaluation_error", "error": str(exc)})
 
     # ------------------------------------------------------------------
     # Pipeline complete

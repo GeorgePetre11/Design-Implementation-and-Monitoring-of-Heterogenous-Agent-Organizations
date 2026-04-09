@@ -7,7 +7,7 @@ in a fixed sequence:
   Engagement Manager → Market Researcher → Financial Analyst
     → Risk Analyst → Strategy Consultant
 
-(Evaluator is not yet implemented.)
+(Evaluator runs in a separate standalone app powered by Kimi 2.5.)
 
 This module implements constraint layer #4 (orchestrator routing):
 each agent only receives the data it is allowed to see.

@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8003:8000"
     environment:
       - OLLAMA_HOST=http://host.docker.internal:11434
       - ENGAGEMENT_MANAGER_MODEL=qwen3:8b
@@ -20,7 +20,7 @@ services:
   frontend:
     image: nginx:alpine
     ports:
-      - "3000:80"
+      - "3003:80"
     volumes:
       - ./frontend:/usr/share/nginx/html:ro
     depends_on:

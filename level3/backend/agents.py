@@ -8,7 +8,7 @@ Five specialized agents collaborate in a sequential pipeline:
   4. Risk Analyst        — identifies and assesses risks
   5. Strategy Consultant — synthesizes all inputs into a consulting report
 
-(Evaluator agent is implemented separately via the Anthropic Claude API.)
+(Evaluator runs in a separate standalone app powered by Kimi 2.5.)
 
 Each agent has:
   - A dedicated system prompt constraining its role  (soft constraint)

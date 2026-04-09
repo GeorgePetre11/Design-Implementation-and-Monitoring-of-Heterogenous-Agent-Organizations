@@ -1,60 +1,69 @@
 """
-Evaluator — Pydantic models for input/output schemas.
+Evaluator -- Pydantic models.
 
-The Evaluator is a standalone application that scores consulting reports
-produced by any level (L1–L4) against a fixed rubric.
+The Evaluator scores a consulting report on six criteria (1-10 each)
+and emits a structured scorecard. See README_evaluator_agent.md for the
+full specification.
 """
+from typing import List
 
 from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
-# Input — what the evaluator receives
+# Request
 # ---------------------------------------------------------------------------
 
 class EvaluationRequest(BaseModel):
-    """Payload sent to the evaluator."""
-    question: str = Field(
-        ..., description="The original client business question."
+    """Inputs accepted by the Evaluator. The agent receives ONLY these two
+    fields -- no intermediate outputs, no agent logs, no metadata."""
+
+    question: str = Field(..., description="The original client business question.")
+    report: str = Field(..., description="The final consulting report to score.")
+    session_id: str | None = Field(
+        default=None,
+        description="Optional caller-provided session ID for monitoring correlation.",
     )
-    report: str = Field(
-        ..., description="The full consulting report (Markdown) to evaluate."
+    level: int | None = Field(
+        default=None,
+        description="Optional source level (1-5) for monitoring/analytics.",
     )
-    level: int = Field(
-        ..., ge=0, le=4, description="Which complexity level produced this report (0 = unknown)."
-    )
-    session_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
-# Output — the evaluation scorecard
+# Scorecard
 # ---------------------------------------------------------------------------
 
 class CriterionScore(BaseModel):
-    score: int = Field(..., ge=1, le=10, description="Score from 1 (worst) to 10 (best).")
+    score: int = Field(ge=1, le=10, description="Score from 1 (worst) to 10 (best)")
     justification: str = Field(
-        ..., description="2-3 sentence justification for this score."
+        min_length=30,
+        max_length=800,
+        description="2-4 sentence justification referencing specific report content",
     )
 
 
 class EvaluationScorecard(BaseModel):
-    """Structured evaluation output matching the thesis rubric."""
-    completeness: CriterionScore
-    accuracy: CriterionScore
-    coherence: CriterionScore
-    structure: CriterionScore
-    actionability: CriterionScore
-    critical_depth: CriterionScore
+    """Strict schema matching the README specification."""
+
+    evaluation: dict[str, CriterionScore] = Field(
+        description=(
+            "Scores for: completeness, accuracy, coherence, structure, "
+            "actionability, critical_depth"
+        ),
+    )
     overall_score: float = Field(
-        ..., ge=1.0, le=10.0,
-        description="Weighted average of all criterion scores.",
+        ge=1.0, le=10.0,
+        description="Arithmetic mean of all 6 criterion scores, rounded to 1 decimal.",
     )
     summary: str = Field(
-        ..., description="2-3 sentence overall assessment of the report."
+        min_length=30,
+        max_length=600,
+        description="1-3 sentence overall assessment.",
     )
-    strengths: list[str] = Field(
-        ..., description="Key strengths of the report (3-5 bullet points)."
-    )
-    weaknesses: list[str] = Field(
-        ..., description="Key weaknesses or gaps (3-5 bullet points)."
+    strongest_dimension: str = Field(description="The criterion with the highest score.")
+    weakest_dimension: str = Field(description="The criterion with the lowest score.")
+    critical_issues: List[str] = Field(
+        default_factory=list,
+        description="The 2-5 most severe problems found, if any.",
     )

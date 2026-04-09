@@ -1,288 +1,284 @@
 """
-Evaluator Agent — Independent quality judge for consulting reports.
+Evaluator Agent -- Kimi K2.5 via Moonshot's OpenAI-compatible API.
 
-Uses DeepSeek-R1:70b for deep reasoning via chain-of-thought.
-The model thinks through each criterion in <think> tags before
-producing the final structured JSON scorecard.
+Independent quality judge for the AI Consulting Firm multi-agent system.
+The Evaluator receives ONLY a client question and a finished consulting
+report and produces a structured 6-criterion scorecard. It cannot modify
+the report, search the web, call tools, or talk to other agents.
 
-This agent is intentionally standalone — it does NOT participate in
-the pipeline. It receives a finished report and scores it independently.
-
-Constraint enforcement:
-  - System prompt: defines the rubric and restrictions (soft)
-  - Output schema: must return valid EvaluationScorecard JSON (hard)
-  - Tool restrictions: NO tools — cannot search, cannot modify the report
-  - Data restriction: only sees the question and the final report
+See README_evaluator_agent.md for the full specification.
 """
-
 import json
 import os
 import re
+import time
 
-import ollama
+from openai import APIError, OpenAI, RateLimitError
 
-EVALUATOR_MODEL = os.getenv("EVALUATOR_MODEL", "deepseek-r1:70b")
+from models import EvaluationScorecard
 
 # ---------------------------------------------------------------------------
-# System Prompt
+# Configuration
 # ---------------------------------------------------------------------------
+DEFAULT_BASE_URL = "https://api.moonshot.ai/v1"
+DEFAULT_MODEL = "kimi-k2.5"
 
+REQUIRED_CRITERIA = (
+    "completeness",
+    "accuracy",
+    "coherence",
+    "structure",
+    "actionability",
+    "critical_depth",
+)
+
+
+# ---------------------------------------------------------------------------
+# System prompt -- verbatim from README_evaluator_agent.md
+# ---------------------------------------------------------------------------
 EVALUATOR_SYSTEM_PROMPT = """\
-You are an independent Evaluator at an AI consulting firm. Your sole \
-responsibility is to critically assess the quality of consulting reports \
-produced by the firm's analyst teams.
+You are the Evaluator Agent in a multi-agent AI Consulting Firm. Your sole \
+responsibility is to independently assess the quality of a consulting report \
+produced by other agents.
 
-You are the FINAL quality gate. Your evaluation must be honest, rigorous, \
-and well-justified. Do not be generous — clients pay for excellence.
+You are NOT the author of this report. You did not participate in its \
+creation. You are an independent judge.
 
-EVALUATION RUBRIC — Score each criterion from 1 (very poor) to 10 (excellent):
+## Your Task
 
-1. COMPLETENESS (weight: 20%)
-   - Are ALL aspects of the business question addressed?
-   - Does the report cover market analysis, financial projections, risk \
-assessment, strategic options, and implementation?
-   - Are there gaps or missing workstreams?
-   Score guide: 1-3 = major gaps, 4-6 = some areas missing or shallow, \
-7-8 = thorough with minor gaps, 9-10 = comprehensive coverage of all aspects.
+You will receive:
+1. The original client business question
+2. The final consulting report
 
-2. ACCURACY (weight: 20%)
-   - Are claims supported by data, sources, or sound reasoning?
-   - Are financial numbers realistic and internally consistent?
-   - Are market claims plausible and specific (not vague)?
-   Score guide: 1-3 = many unsupported or wrong claims, 4-6 = mix of \
-supported and unsupported, 7-8 = mostly well-supported, 9-10 = rigorous \
-data-driven analysis with clear sources.
+You must evaluate the report on exactly 6 criteria, each scored 1-10, with a \
+written justification of 2-4 sentences per criterion.
 
-3. COHERENCE (weight: 15%)
-   - Does the analysis flow logically from data to conclusions to \
-recommendations?
-   - Are the strategic options consistent with the findings?
-   - Do different sections contradict each other?
-   Score guide: 1-3 = disjointed or contradictory, 4-6 = mostly logical \
-but some jumps, 7-8 = clear logical flow, 9-10 = seamless argumentation.
+## Scoring Criteria
 
-4. STRUCTURE (weight: 15%)
-   - Is the report well-organized with clear sections?
-   - Does it follow professional consulting report conventions?
-   - Is the formatting clean and easy to navigate?
-   Score guide: 1-3 = disorganized, 4-6 = basic structure but rough, \
-7-8 = well-organized and professional, 9-10 = publication-quality structure.
+1. **Completeness (1-10)**: Does the report address ALL aspects of the \
+client's question? Are any workstreams, topics, or angles missing? Score 1-3 \
+if major sections are missing. Score 7+ only if all key areas are covered \
+with reasonable depth.
 
-5. ACTIONABILITY (weight: 15%)
-   - Are recommendations specific enough to act on?
-   - Is there a clear implementation roadmap with phases/timelines?
-   - Can a decision-maker use this report to make a real decision?
-   Score guide: 1-3 = vague platitudes, 4-6 = some specific advice, \
-7-8 = clear actionable recommendations, 9-10 = detailed roadmap with \
-concrete next steps and timelines.
+2. **Accuracy (1-10)**: Are claims and numbers realistic and internally \
+consistent? Are sources cited? Does the math check out? If the report states \
+costs of EUR 160K and revenue of EUR 120K but claims break-even in 8 months, \
+that is an internal contradiction -- score accordingly. If market data, \
+competitor names, or statistics are presented without sources, note this. \
+Score 1-3 if most data appears fabricated or contradictory.
 
-6. CRITICAL DEPTH (weight: 15%)
-   - Are risks, limitations, and counterarguments addressed?
-   - Does the report acknowledge uncertainty and tradeoffs?
-   - Are multiple strategic options genuinely compared (not a strawman)?
-   Score guide: 1-3 = no critical analysis, 4-6 = superficial risk \
-mentions, 7-8 = thoughtful risk/tradeoff analysis, 9-10 = sophisticated \
-critical thinking with nuanced tradeoffs.
+3. **Coherence (1-10)**: Does the analysis flow logically from data to \
+recommendation? Do findings in one section contradict findings in another? \
+If the risk section flags fierce competition but the strategy assumes 20% \
+market share in year one, that is incoherent. Score 7+ only if recommendations \
+clearly follow from the evidence.
 
-RESTRICTIONS — You must obey these absolutely:
-- Do NOT modify the report in any way
-- Do NOT provide an improved version of the report
-- Do NOT add new analysis or research
-- ONLY evaluate and score — that is your entire job
-- Be CALIBRATED: a score of 7 means genuinely good, not "average"
-- A Level 1 (single agent, no tools) report SHOULD score lower than a \
-Level 3 (specialized agents with tools) report if the quality differs
+4. **Structure (1-10)**: Is the report organized like a professional \
+consulting deliverable? Clear sections, logical ordering, executive summary, \
+proper formatting? Score 7+ if the structure is clean and navigable.
 
-OVERALL SCORE CALCULATION:
-overall_score = (completeness * 0.20) + (accuracy * 0.20) + \
-(coherence * 0.15) + (structure * 0.15) + (actionability * 0.15) + \
-(critical_depth * 0.15)
+5. **Actionability (1-10)**: Could a decision-maker act on these \
+recommendations? Are there specific timelines, budgets, KPIs, and responsible \
+parties? Or just vague advice like "conduct further research"? Score 7+ only \
+if a client could hand this to their operations team and start executing.
 
-OUTPUT FORMAT — You must respond with valid JSON matching this exact structure:
+6. **Critical Depth (1-10)**: Does the report consider risks, counterarguments, \
+limitations, and alternative scenarios? Is there sensitivity analysis? Does it \
+acknowledge what it does not know? Score 1-3 if the report presents a single \
+optimistic scenario with no critical examination.
+
+## Scoring Rules
+
+- Be HONEST. Do not inflate scores. A report full of fabricated data should \
+score 2-3 on accuracy, not 7.
+- Reference SPECIFIC content from the report in your justifications. Do not \
+write vague statements like "could be improved."
+- If the report's own numbers contradict each other, flag this explicitly.
+- If claims lack sources, say so.
+- If competitor names or data points seem invented, say so.
+- The overall_score is the arithmetic mean of all 6 criterion scores, rounded \
+to 1 decimal.
+- Identify the strongest and weakest dimensions.
+- List critical issues -- the 2-5 most severe problems you found.
+
+## Output Format
+
+Respond with ONLY a valid JSON object matching this structure. No markdown \
+fences, no preamble, no text outside the JSON:
+
 {
-  "completeness": {
-    "score": 7,
-    "justification": "The report covers market analysis and strategic options \
-but lacks detailed financial projections..."
+  "evaluation": {
+    "completeness": {"score": <1-10>, "justification": "<2-4 sentences>"},
+    "accuracy": {"score": <1-10>, "justification": "<2-4 sentences>"},
+    "coherence": {"score": <1-10>, "justification": "<2-4 sentences>"},
+    "structure": {"score": <1-10>, "justification": "<2-4 sentences>"},
+    "actionability": {"score": <1-10>, "justification": "<2-4 sentences>"},
+    "critical_depth": {"score": <1-10>, "justification": "<2-4 sentences>"}
   },
-  "accuracy": {
-    "score": 6,
-    "justification": "Market size claims are supported by sources, but \
-revenue projections lack clear assumptions..."
-  },
-  "coherence": {
-    "score": 8,
-    "justification": "..."
-  },
-  "structure": {
-    "score": 7,
-    "justification": "..."
-  },
-  "actionability": {
-    "score": 5,
-    "justification": "..."
-  },
-  "critical_depth": {
-    "score": 6,
-    "justification": "..."
-  },
-  "overall_score": 6.55,
-  "summary": "Overall assessment of the report in 2-3 sentences.",
-  "strengths": [
-    "Strength 1",
-    "Strength 2",
-    "Strength 3"
-  ],
-  "weaknesses": [
-    "Weakness 1",
-    "Weakness 2",
-    "Weakness 3"
-  ]
+  "overall_score": <float>,
+  "summary": "<1-3 sentence overall assessment>",
+  "strongest_dimension": "<criterion name>",
+  "weakest_dimension": "<criterion name>",
+  "critical_issues": ["<issue 1>", "<issue 2>", ...]
 }
-
-Respond ONLY with the JSON object. No commentary, no markdown, no extra text.\
 """
 
 
 # ---------------------------------------------------------------------------
-# Utility — JSON extraction (same pattern as other levels)
+# Agent
 # ---------------------------------------------------------------------------
-
-def extract_json(text: str) -> dict:
-    """Parse JSON from LLM output, handling think-tags, code fences, etc."""
-    # Strip <think>...</think> blocks (DeepSeek R1 reasoning)
-    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    text = text.strip()
-
-    # Direct parse
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # Code fence extraction
-    m = re.search(r"```json\s*(.*?)\s*```", text, flags=re.DOTALL)
-    if m:
-        try:
-            return json.loads(m.group(1))
-        except json.JSONDecodeError:
-            text = m.group(1)
-
-    # Outermost { ... }
-    m = re.search(r"\{.*\}", text, flags=re.DOTALL)
-    if m:
-        candidate = m.group(0)
-        try:
-            return json.loads(candidate)
-        except json.JSONDecodeError:
-            repaired = _repair_json(candidate)
-            try:
-                return json.loads(repaired)
-            except json.JSONDecodeError:
-                pass
-
-    raise ValueError(f"Could not extract JSON from evaluator response: {text[:300]}")
-
-
-def _repair_json(text: str) -> str:
-    """Fix common LLM JSON mistakes."""
-    text = re.sub(r",\s*([}\]])", r"\1", text)
-    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f]", "", text)
-    return text
-
-
-# ---------------------------------------------------------------------------
-# Evaluator Agent
-# ---------------------------------------------------------------------------
-
-WEIGHTS = {
-    "completeness": 0.20,
-    "accuracy": 0.20,
-    "coherence": 0.15,
-    "structure": 0.15,
-    "actionability": 0.15,
-    "critical_depth": 0.15,
-}
-
-MAX_RETRIES = 3
-
-
-class Evaluator:
-    """Independent quality judge. Scores a consulting report against
-    the six-criterion rubric using DeepSeek-R1:70b."""
+class EvaluatorAgent:
+    """Independent quality judge backed by Kimi K2.5."""
 
     name = "evaluator"
     display_name = "Evaluator"
-    model = EVALUATOR_MODEL
+    role = "Independent Quality Judge"
 
-    def run(self, question: str, report: str, level: int) -> dict:
-        """Evaluate the report and return a parsed scorecard dict.
+    MAX_RETRIES = 3
+    RETRY_DELAY = 5  # seconds (multiplied by attempt number)
 
-        Args:
-            question: The original client business question.
-            report: The full consulting report (Markdown).
-            level: Which complexity level produced this report (1-4).
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        model: str | None = None,
+        temperature: float = 0.1,
+        max_tokens: int = 2000,
+    ):
+        self.api_key = api_key or os.getenv("EVALUATOR_API_KEY", "")
+        self.base_url = base_url or os.getenv("EVALUATOR_BASE_URL", DEFAULT_BASE_URL)
+        self.model = model or os.getenv("EVALUATOR_MODEL", DEFAULT_MODEL)
+        self.temperature = temperature
+        self.max_tokens = max_tokens
 
-        Returns:
-            Parsed EvaluationScorecard as a dict.
-        """
-        parts = []
-        if level and level > 0:
-            parts.append(
-                f"COMPLEXITY LEVEL: Level {level}\n"
-                f"(Level 1 = single generic agent, no tools. "
-                f"Level 2 = 3 specialized agents. "
-                f"Level 3 = 5 specialized agents with web search and financial tools. "
-                f"Level 4 = 6 agents with organizational workflows.)\n"
-            )
-        if question and question != "(extracted from report)":
-            parts.append(f"ORIGINAL CLIENT QUESTION:\n{question}\n")
-        parts.append(
-            f"CONSULTING REPORT TO EVALUATE:\n"
-            f"{'=' * 60}\n"
-            f"{report}\n"
-            f"{'=' * 60}\n\n"
-            f"Evaluate this consulting report against all six "
-            f"criteria in your rubric. Be rigorous and honest. Justify every score."
+        # The OpenAI SDK requires a non-empty api_key string, but local
+        # OpenAI-compatible servers (e.g. Ollama at http://localhost:11434/v1)
+        # ignore its value. Fall back to a placeholder so the client can be
+        # constructed without a real key.
+        self._client = OpenAI(
+            api_key=self.api_key or "not-needed",
+            base_url=self.base_url,
         )
-        user_prompt = "\n".join(parts)
 
-        last_err = None
-        for attempt in range(MAX_RETRIES):
+    # ------------------------------------------------------------------
+    @property
+    def available(self) -> bool:
+        return True
+
+    # ------------------------------------------------------------------
+    def evaluate(self, question: str, report: str) -> dict:
+        """Score a consulting report. Returns a validated scorecard dict.
+
+        Raises ConnectionError if the API is unreachable, ValueError if the
+        model fails to produce a valid scorecard after MAX_RETRIES attempts,
+        and RuntimeError if the agent has no API key configured.
+        """
+        last_err: Exception | None = None
+        for attempt in range(self.MAX_RETRIES):
             try:
-                print(
-                    f"[evaluator] attempt {attempt + 1}/{MAX_RETRIES} "
-                    f"using model={self.model}",
-                    flush=True,
-                )
-                response = ollama.chat(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": EVALUATOR_SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    format="json",
-                )
-                raw = response["message"]["content"]
-                scorecard = extract_json(raw)
-
-                # Recalculate overall_score to ensure correctness
-                scorecard["overall_score"] = round(
-                    sum(
-                        scorecard[criterion]["score"] * weight
-                        for criterion, weight in WEIGHTS.items()
-                    ),
-                    2,
-                )
-
+                raw = self._call_api(question, report)
+                scorecard = self._parse_response(raw)
+                self._validate_scorecard(scorecard)
+                self._normalise_scorecard(scorecard)
                 return scorecard
 
-            except Exception as e:
+            except RateLimitError as e:
                 last_err = e
-                print(f"[evaluator] attempt {attempt + 1} failed: {e}", flush=True)
-                if attempt < MAX_RETRIES - 1:
+                if attempt < self.MAX_RETRIES - 1:
+                    time.sleep(self.RETRY_DELAY * (attempt + 1))
                     continue
+                raise
 
-        raise RuntimeError(
-            f"Evaluator failed after {MAX_RETRIES} attempts. Last error: {last_err}"
+            except (json.JSONDecodeError, ValueError) as e:
+                last_err = e
+                if attempt < self.MAX_RETRIES - 1:
+                    continue
+                raise ValueError(
+                    f"Evaluator failed to produce a valid scorecard after "
+                    f"{self.MAX_RETRIES} attempts: {e}"
+                )
+
+            except APIError as e:
+                raise ConnectionError(f"Moonshot API error: {e}")
+
+        # Defensive -- the loop above always returns or raises
+        raise RuntimeError(f"Evaluator exhausted retries: {last_err}")
+
+    # ------------------------------------------------------------------
+    def _call_api(self, question: str, report: str) -> str:
+        user_message = (
+            f"## Original Client Question\n{question}\n\n"
+            f"## Consulting Report to Evaluate\n{report}"
         )
+        response = self._client.chat.completions.create(
+            model=self.model,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+            messages=[
+                {"role": "system", "content": EVALUATOR_SYSTEM_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
+        )
+        return response.choices[0].message.content or ""
+
+    # ------------------------------------------------------------------
+    def _parse_response(self, raw: str) -> dict:
+        """Parse the model output into a dict, tolerating common LLM quirks."""
+        text = raw.strip()
+
+        # Strip markdown code fences if present
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```\s*$", "", text)
+
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            pass
+
+        # Fall back: extract the outermost JSON object
+        m = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        if not m:
+            raise json.JSONDecodeError("No JSON object found in response", text, 0)
+        return json.loads(m.group(0))
+
+    # ------------------------------------------------------------------
+    def _validate_scorecard(self, scorecard: dict) -> None:
+        """Strict validation against the README schema."""
+        evaluation = scorecard.get("evaluation")
+        if not isinstance(evaluation, dict):
+            raise ValueError("Scorecard is missing the 'evaluation' object.")
+
+        present = set(evaluation.keys())
+        missing = set(REQUIRED_CRITERIA) - present
+        if missing:
+            raise ValueError(f"Missing criteria in scorecard: {sorted(missing)}")
+
+        for criterion in REQUIRED_CRITERIA:
+            entry = evaluation[criterion]
+            score = entry.get("score")
+            justification = entry.get("justification", "")
+            if not isinstance(score, int) or not (1 <= score <= 10):
+                raise ValueError(f"{criterion} score {score!r} out of range [1, 10]")
+            if len(justification) < 30:
+                raise ValueError(
+                    f"{criterion} justification too short: {justification!r}"
+                )
+
+        for field in ("summary", "strongest_dimension", "weakest_dimension"):
+            if not scorecard.get(field):
+                raise ValueError(f"Scorecard is missing required field: {field}")
+
+        # Final pydantic round-trip catches any remaining schema drift
+        EvaluationScorecard.model_validate(scorecard)
+
+    # ------------------------------------------------------------------
+    def _normalise_scorecard(self, scorecard: dict) -> None:
+        """Recompute overall_score from criterion averages, in place."""
+        scores = [scorecard["evaluation"][c]["score"] for c in REQUIRED_CRITERIA]
+        scorecard["overall_score"] = round(sum(scores) / len(scores), 1)
+
+        # Recompute strongest/weakest from the actual numbers (defensive)
+        ranked = sorted(REQUIRED_CRITERIA, key=lambda c: scorecard["evaluation"][c]["score"])
+        scorecard["weakest_dimension"] = ranked[0]
+        scorecard["strongest_dimension"] = ranked[-1]
