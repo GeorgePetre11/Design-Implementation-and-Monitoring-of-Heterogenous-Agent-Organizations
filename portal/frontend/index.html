@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Consulting Firm — Gateway Portal</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 2.5rem 1.5rem 4rem;
+    }
+
+    .container { max-width: 1200px; margin: 0 auto; }
+
+    /* -- Header -- */
+    header { text-align: center; margin-bottom: 2rem; }
+    header h1 {
+      font-size: 2.1rem; font-weight: 700; color: #f8fafc; letter-spacing: -0.01em;
+    }
+    header .subtitle { margin-top: 0.5rem; font-size: 0.95rem; color: #94a3b8; }
+    header .thesis-meta {
+      margin-top: 0.9rem; font-size: 0.78rem; color: #64748b; font-style: italic;
+    }
+    .header-badges {
+      display: flex; gap: 0.5rem; justify-content: center;
+      margin-top: 1rem; flex-wrap: wrap;
+    }
+    .header-badge {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      background: #1e293b; border: 1px solid #334155;
+      color: #7dd3fc; font-size: 0.72rem; padding: 0.25rem 0.7rem; border-radius: 999px;
+    }
+    .header-badge .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #475569; transition: background 0.3s;
+    }
+    .header-badge .dot.up   { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .header-badge .dot.down { background: #f87171; }
+    .header-badge .dot.checking {
+      background: #fbbf24; animation: pulse 1.2s ease-in-out infinite;
+    }
+
+    /* -- Master controls (Start All / Stop All) -- */
+    .master-controls {
+      display: flex; gap: 0.6rem; justify-content: center;
+      margin-top: 1.2rem; flex-wrap: wrap;
+    }
+    .master-btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.55rem 1.2rem; font-size: 0.82rem; font-weight: 600;
+      border-radius: 8px; cursor: pointer; border: 1px solid transparent;
+      transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+      background: #1e293b; color: #e2e8f0;
+    }
+    .master-btn.start { border-color: #166534; color: #4ade80; }
+    .master-btn.start:hover { background: #166534; color: #fff; }
+    .master-btn.stop  { border-color: #7f1d1d; color: #f87171; }
+    .master-btn.stop:hover  { background: #7f1d1d; color: #fff; }
+    .master-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .portal-backend-warning {
+      max-width: 680px; margin: 1.1rem auto 0;
+      background: #7f1d1d; border: 1px solid #b91c1c; color: #fecaca;
+      padding: 0.7rem 1rem; border-radius: 8px; font-size: 0.78rem;
+      text-align: center; display: none;
+    }
+    .portal-backend-warning.visible { display: block; }
+    .portal-backend-warning code {
+      background: #450a0a; padding: 0.1rem 0.35rem; border-radius: 4px;
+      font-size: 0.72rem;
+    }
+
+    /* -- Section heading -- */
+    .section-heading {
+      font-size: 0.78rem; font-weight: 600; color: #64748b;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      margin: 2rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1e293b;
+    }
+
+    /* -- Level card grid -- */
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 1.2rem;
+    }
+
+    .level-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 14px;
+      padding: 1.4rem 1.4rem 1.2rem;
+      display: flex; flex-direction: column;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .level-card::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: var(--accent, #7dd3fc); opacity: 0.8;
+    }
+    .level-card:hover {
+      transform: translateY(-3px); border-color: var(--accent, #7dd3fc);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    .level-card.l1   { --accent: #94a3b8; }
+    .level-card.l2   { --accent: #7dd3fc; }
+    .level-card.l3   { --accent: #818cf8; }
+    .level-card.l4   { --accent: #fbbf24; }
+    .level-card.eval { --accent: #a78bfa; }
+
+    .card-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 0.4rem;
+    }
+    .card-title {
+      font-size: 1.05rem; font-weight: 700; color: #f8fafc;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .card-title .num {
+      font-size: 0.72rem; font-weight: 600; color: var(--accent);
+      background: rgba(125, 211, 252, 0.08); border: 1px solid var(--accent);
+      padding: 0.1rem 0.45rem; border-radius: 6px; letter-spacing: 0.03em;
+    }
+
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      font-size: 0.7rem; color: #94a3b8;
+      background: #0f1117; border: 1px solid #334155;
+      padding: 0.2rem 0.55rem; border-radius: 999px;
+    }
+    .status-pill .dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #475569; transition: background 0.3s;
+    }
+    .status-pill .dot.up       { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+    .status-pill .dot.down     { background: #f87171; }
+    .status-pill .dot.stopped  { background: #475569; }
+    .status-pill .dot.checking { background: #fbbf24; animation: pulse 1.2s ease-in-out infinite; }
+    .status-pill .dot.starting { background: #fbbf24; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50%      { opacity: 1; }
+    }
+
+    .card-tagline {
+      font-size: 0.8rem; color: var(--accent); font-weight: 600;
+      margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .card-desc {
+      font-size: 0.85rem; line-height: 1.55; color: #cbd5e1;
+      margin-bottom: 1rem; flex: 1;
+    }
+    .agent-chips {
+      display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 1rem;
+    }
+    .agent-chip {
+      font-size: 0.68rem; color: #94a3b8;
+      background: #0f1117; border: 1px solid #334155;
+      padding: 0.18rem 0.5rem; border-radius: 5px;
+    }
+    .card-meta {
+      display: flex; gap: 0.8rem; font-size: 0.7rem; color: #64748b;
+      margin-bottom: 1rem; padding-top: 0.7rem; border-top: 1px solid #334155;
+    }
+    .card-meta span strong { color: #e2e8f0; font-weight: 600; }
+
+    .card-actions {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.55rem 0.8rem; font-size: 0.78rem; font-weight: 600;
+      border-radius: 8px; text-decoration: none; cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.2s, border-color 0.2s, color 0.2s, opacity 0.2s;
+    }
+    .btn.primary   { background: #0ea5e9; color: #fff; }
+    .btn.primary:hover { background: #38bdf8; }
+    .btn.secondary {
+      background: transparent; color: #a78bfa; border-color: #4c1d95;
+    }
+    .btn.secondary:hover { background: #4c1d95; color: #e9d5ff; }
+    .btn.start {
+      background: transparent; color: #4ade80; border-color: #166534;
+    }
+    .btn.start:hover { background: #166534; color: #fff; }
+    .btn.stop {
+      background: transparent; color: #f87171; border-color: #7f1d1d;
+    }
+    .btn.stop:hover { background: #7f1d1d; color: #fff; }
+    .btn.disabled {
+      background: transparent; color: #475569; border-color: #334155;
+      cursor: not-allowed; pointer-events: none;
+    }
+    .btn.loading { opacity: 0.6; cursor: wait; pointer-events: none; }
+
+    /* -- Toast -- */
+    .toast-container {
+      position: fixed; bottom: 1.2rem; right: 1.2rem;
+      display: flex; flex-direction: column; gap: 0.5rem;
+      z-index: 1000; max-width: 380px;
+    }
+    .toast {
+      background: #1e293b; border: 1px solid #334155;
+      border-left: 3px solid #7dd3fc;
+      padding: 0.7rem 1rem; border-radius: 8px;
+      font-size: 0.78rem; color: #e2e8f0;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+      animation: slide-in 0.25s ease-out;
+    }
+    .toast.success { border-left-color: #4ade80; }
+    .toast.error   { border-left-color: #f87171; }
+    .toast strong  { display: block; margin-bottom: 0.15rem; }
+    @keyframes slide-in {
+      from { transform: translateX(100%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+
+    /* -- Quick links -- */
+    .quick-strip {
+      display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center;
+      margin-top: 1.2rem;
+    }
+    .quick-link {
+      font-size: 0.72rem; color: #94a3b8;
+      background: #1e293b; border: 1px solid #334155;
+      padding: 0.35rem 0.85rem; border-radius: 999px; text-decoration: none;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .quick-link:hover { border-color: #7dd3fc; color: #7dd3fc; }
+
+    footer {
+      text-align: center; margin-top: 3rem; padding-top: 1.5rem;
+      border-top: 1px solid #1e293b; font-size: 0.72rem; color: #475569;
+    }
+    footer a { color: #64748b; text-decoration: none; }
+    footer a:hover { color: #7dd3fc; }
+
+    @media (max-width: 640px) {
+      body { padding: 1.5rem 1rem 3rem; }
+      header h1 { font-size: 1.5rem; }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <h1>AI Consulting Firm</h1>
+    <div class="subtitle">Gateway Portal — Heterogeneous Agent Organizations</div>
+    <div class="thesis-meta">Bachelor's Thesis · Progressive Complexity Experiment</div>
+    <div class="header-badges">
+      <span class="header-badge">
+        <span class="dot" id="global-dot"></span>
+        <span id="global-status">Checking services…</span>
+      </span>
+      <span class="header-badge">5 Services</span>
+      <span class="header-badge">Ports 3001–3004 · 8001–8005</span>
+    </div>
+    <div class="master-controls">
+      <button class="master-btn start" id="start-all-btn" onclick="startAll()">Start All</button>
+      <button class="master-btn stop"  id="stop-all-btn"  onclick="stopAll()">Stop All</button>
+    </div>
+    <div class="portal-backend-warning" id="portal-warn">
+      Portal control backend is offline. Start/Stop buttons are disabled.
+      Run <code>docker compose up -d</code> in the <code>portal/</code> directory.
+    </div>
+  </header>
+
+  <div class="section-heading">Progressive Complexity Levels</div>
+
+  <div class="grid" id="levels-grid">
+
+    <!-- Level 1 -->
+    <div class="level-card l1" data-service="level1" data-health="http://localhost:8001/health">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="num">L1</span>
+          Single Agent
+        </div>
+        <div class="status-pill">
+          <span class="dot checking"></span>
+          <span class="status-label">checking…</span>
+        </div>
+      </div>
+      <div class="card-tagline">Baseline</div>
+      <div class="card-desc">
+        One generic agent handles the entire consulting workflow end-to-end —
+        no role separation, no orchestration. Establishes the baseline for
+        progressive complexity comparisons.
+      </div>
+      <div class="agent-chips">
+        <span class="agent-chip">SingleAgent</span>
+      </div>
+      <div class="card-meta">
+        <span>Frontend <strong>:3001</strong></span>
+        <span>API <strong>:8001</strong></span>
+        <span>Agents <strong>1</strong></span>
+      </div>
+      <div class="card-actions">
+        <a class="btn primary" href="http://localhost:3001/" target="_blank">Open App</a>
+        <span class="btn disabled">No Dashboard</span>
+        <button class="btn start" data-action="start">Start</button>
+        <button class="btn stop"  data-action="stop">Stop</button>
+      </div>
+    </div>
+
+    <!-- Level 2 -->
+    <div class="level-card l2" data-service="level2" data-health="http://localhost:8002/health">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="num">L2</span>
+          Four Agents
+        </div>
+        <div class="status-pill">
+          <span class="dot checking"></span>
+          <span class="status-label">checking…</span>
+        </div>
+      </div>
+      <div class="card-tagline">Core Roles</div>
+      <div class="card-desc">
+        Introduces role separation: an Engagement Manager plans the work, a
+        Market Researcher gathers findings, and a Strategy Consultant writes
+        the final deliverable. Evaluator scores the output.
+      </div>
+      <div class="agent-chips">
+        <span class="agent-chip">Engagement Manager</span>
+        <span class="agent-chip">Market Researcher</span>
+        <span class="agent-chip">Strategy Consultant</span>
+        <span class="agent-chip">Evaluator</span>
+      </div>
+      <div class="card-meta">
+        <span>Frontend <strong>:3002</strong></span>
+        <span>API <strong>:8002</strong></span>
+        <span>Agents <strong>4</strong></span>
+      </div>
+      <div class="card-actions">
+        <a class="btn primary" href="http://localhost:3002/" target="_blank">Open App</a>
+        <a class="btn secondary" href="http://localhost:3002/dashboard.html" target="_blank">Dashboard</a>
+        <button class="btn start" data-action="start">Start</button>
+        <button class="btn stop"  data-action="stop">Stop</button>
+      </div>
+    </div>
+
+    <!-- Level 3 -->
+    <div class="level-card l3" data-service="level3" data-health="http://localhost:8003/health">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="num">L3</span>
+          Six Agents
+        </div>
+        <div class="status-pill">
+          <span class="dot checking"></span>
+          <span class="status-label">checking…</span>
+        </div>
+      </div>
+      <div class="card-tagline">Full Specialization</div>
+      <div class="card-desc">
+        Adds Financial Analyst and Risk Analyst as independent specialists.
+        Each agent is confined to its domain through system prompts, tool
+        restrictions, and output schemas.
+      </div>
+      <div class="agent-chips">
+        <span class="agent-chip">Engagement Manager</span>
+        <span class="agent-chip">Market Researcher</span>
+        <span class="agent-chip">Financial Analyst</span>
+        <span class="agent-chip">Risk Analyst</span>
+        <span class="agent-chip">Strategy Consultant</span>
+        <span class="agent-chip">Evaluator</span>
+      </div>
+      <div class="card-meta">
+        <span>Frontend <strong>:3003</strong></span>
+        <span>API <strong>:8003</strong></span>
+        <span>Agents <strong>6</strong></span>
+      </div>
+      <div class="card-actions">
+        <a class="btn primary" href="http://localhost:3003/" target="_blank">Open App</a>
+        <a class="btn secondary" href="http://localhost:3003/dashboard.html" target="_blank">Dashboard</a>
+        <button class="btn start" data-action="start">Start</button>
+        <button class="btn stop"  data-action="stop">Stop</button>
+      </div>
+    </div>
+
+    <!-- Level 4 -->
+    <div class="level-card l4" data-service="level4" data-health="http://localhost:8004/health">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="num">L4</span>
+          Organizational Workflows
+        </div>
+        <div class="status-pill">
+          <span class="dot checking"></span>
+          <span class="status-label">checking…</span>
+        </div>
+      </div>
+      <div class="card-tagline">Hybrid Hierarchical</div>
+      <div class="card-desc">
+        Same six agents under organizational structure — Engagement Manager
+        reviews intermediate outputs and can send work back for revision.
+        Iterative loops until quality is sufficient.
+      </div>
+      <div class="agent-chips">
+        <span class="agent-chip">Pipeline</span>
+        <span class="agent-chip">Hierarchical</span>
+        <span class="agent-chip">Hybrid + Revision</span>
+      </div>
+      <div class="card-meta">
+        <span>Frontend <strong>:3004</strong></span>
+        <span>API <strong>:8004</strong></span>
+        <span>Agents <strong>6</strong></span>
+      </div>
+      <div class="card-actions">
+        <a class="btn primary" href="http://localhost:3004/" target="_blank">Open App</a>
+        <a class="btn secondary" href="http://localhost:3004/dashboard.html" target="_blank">Dashboard</a>
+        <button class="btn start" data-action="start">Start</button>
+        <button class="btn stop"  data-action="stop">Stop</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-heading">External Services</div>
+
+  <div class="grid">
+
+    <!-- Evaluator -->
+    <div class="level-card eval" data-service="evaluator" data-health="http://localhost:8005/health">
+      <div class="card-head">
+        <div class="card-title">
+          <span class="num">EV</span>
+          Evaluator Service
+        </div>
+        <div class="status-pill">
+          <span class="dot checking"></span>
+          <span class="status-label">checking…</span>
+        </div>
+      </div>
+      <div class="card-tagline">Kimi K2.5 · Independent Judge</div>
+      <div class="card-desc">
+        Standalone evaluation microservice. Scores final reports on
+        completeness, accuracy, coherence, structure, actionability, and
+        critical depth. Called by Level 2–4 backends.
+      </div>
+      <div class="agent-chips">
+        <span class="agent-chip">External API</span>
+        <span class="agent-chip">Rubric Scoring</span>
+      </div>
+      <div class="card-meta">
+        <span>API <strong>:8005</strong></span>
+        <span>Model <strong>Kimi K2.5</strong></span>
+      </div>
+      <div class="card-actions">
+        <a class="btn primary" href="http://localhost:8005/docs" target="_blank">API Docs</a>
+        <a class="btn secondary" href="http://localhost:8005/health" target="_blank">Health</a>
+        <button class="btn start" data-action="start">Start</button>
+        <button class="btn stop"  data-action="stop">Stop</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-heading">Quick Links</div>
+  <div class="quick-strip">
+    <a class="quick-link" href="http://localhost:8001/docs" target="_blank">L1 API Docs</a>
+    <a class="quick-link" href="http://localhost:8002/docs" target="_blank">L2 API Docs</a>
+    <a class="quick-link" href="http://localhost:8003/docs" target="_blank">L3 API Docs</a>
+    <a class="quick-link" href="http://localhost:8004/docs" target="_blank">L4 API Docs</a>
+    <a class="quick-link" href="http://localhost:8005/docs" target="_blank">Evaluator API Docs</a>
+    <a class="quick-link" href="http://localhost:8000/docs" target="_blank">Portal Control API</a>
+  </div>
+
+  <footer>
+    Gateway Portal · Heterogeneous Agent Organizations ·
+    <a href="#" onclick="refreshAll(); return false;">Refresh status</a>
+  </footer>
+
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const PORTAL_API = "http://localhost:8000";
+let portalBackendUp = false;
+
+/* -------- Toasts -------- */
+function toast(title, body, kind) {
+  const container = document.getElementById("toast-container");
+  const el = document.createElement("div");
+  el.className = "toast" + (kind ? " " + kind : "");
+  el.innerHTML = "<strong>" + escapeHtml(title) + "</strong>" + escapeHtml(body || "");
+  container.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = "opacity 0.3s";
+    el.style.opacity = "0";
+    setTimeout(() => el.remove(), 300);
+  }, 4000);
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+/* -------- Portal backend health -------- */
+async function checkPortalBackend() {
+  try {
+    const res = await fetch(PORTAL_API + "/health", {
+      signal: AbortSignal.timeout(2000),
+    });
+    portalBackendUp = res.ok;
+  } catch {
+    portalBackendUp = false;
+  }
+  const warn = document.getElementById("portal-warn");
+  warn.classList.toggle("visible", !portalBackendUp);
+  document.getElementById("start-all-btn").disabled = !portalBackendUp;
+  document.getElementById("stop-all-btn").disabled = !portalBackendUp;
+  document.querySelectorAll(".btn[data-action]").forEach(btn => {
+    if (!portalBackendUp) {
+      btn.classList.add("disabled");
+    } else {
+      btn.classList.remove("disabled");
+    }
+  });
+}
+
+/* -------- Compose state (running / stopped) from portal backend -------- */
+async function fetchComposeStates() {
+  if (!portalBackendUp) return {};
+  try {
+    const res = await fetch(PORTAL_API + "/api/services", {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return {};
+    return await res.json();
+  } catch {
+    return {};
+  }
+}
+
+/* -------- Direct /health check against a level backend -------- */
+async function checkLevelHealth(url) {
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(2500),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/* -------- Combine both signals into a single card state -------- */
+function applyCardState(card, composeRunning, healthUp) {
+  const pill  = card.querySelector(".status-pill");
+  const dot   = pill.querySelector(".dot");
+  const label = pill.querySelector(".status-label");
+  const startBtn = card.querySelector('.btn[data-action="start"]');
+  const stopBtn  = card.querySelector('.btn[data-action="stop"]');
+
+  let state;
+  if (healthUp) {
+    state = "online";
+  } else if (composeRunning) {
+    state = "starting";
+  } else if (composeRunning === false) {
+    state = "stopped";
+  } else {
+    state = "unknown";
+  }
+
+  dot.className = "dot";
+  if (state === "online") {
+    dot.classList.add("up");
+    label.textContent = "online";
+  } else if (state === "starting") {
+    dot.classList.add("starting");
+    label.textContent = "starting…";
+  } else if (state === "stopped") {
+    dot.classList.add("stopped");
+    label.textContent = "stopped";
+  } else {
+    dot.classList.add("down");
+    label.textContent = "offline";
+  }
+
+  // Enable/disable start/stop based on current state, but only if portal
+  // backend is reachable at all.
+  if (!portalBackendUp) {
+    startBtn.classList.add("disabled");
+    stopBtn.classList.add("disabled");
+    return;
+  }
+  if (state === "online" || state === "starting") {
+    startBtn.classList.add("disabled");
+    stopBtn.classList.remove("disabled");
+  } else {
+    startBtn.classList.remove("disabled");
+    stopBtn.classList.add("disabled");
+  }
+}
+
+/* -------- Global refresh -------- */
+async function refreshAll() {
+  await checkPortalBackend();
+  const composeStates = await fetchComposeStates();
+  const cards = [...document.querySelectorAll(".level-card")];
+
+  const healthResults = await Promise.all(cards.map(card =>
+    checkLevelHealth(card.dataset.health),
+  ));
+
+  cards.forEach((card, i) => {
+    const svc = card.dataset.service;
+    const composeRunning = composeStates[svc]
+      ? composeStates[svc].running
+      : null;
+    applyCardState(card, composeRunning, healthResults[i]);
+  });
+
+  const online = healthResults.filter(Boolean).length;
+  const total  = cards.length;
+  const globalDot    = document.getElementById("global-dot");
+  const globalStatus = document.getElementById("global-status");
+
+  if (!portalBackendUp) {
+    globalDot.className = "dot down";
+    globalStatus.textContent = "Portal backend offline";
+  } else if (online === total) {
+    globalDot.className = "dot up";
+    globalStatus.textContent = `All ${total} services online`;
+  } else if (online === 0) {
+    globalDot.className = "dot down";
+    globalStatus.textContent = "All services stopped";
+  } else {
+    globalDot.className = "dot up";
+    globalStatus.textContent = `${online} / ${total} services online`;
+  }
+}
+
+/* -------- Start / stop a single service -------- */
+async function controlService(card, action) {
+  if (!portalBackendUp) {
+    toast("Portal backend offline", "Cannot " + action + " from the UI.", "error");
+    return;
+  }
+  const svc = card.dataset.service;
+  const btn = card.querySelector(`.btn[data-action="${action}"]`);
+  btn.classList.add("loading");
+  btn.textContent = action === "start" ? "Starting…" : "Stopping…";
+
+  try {
+    const res = await fetch(`${PORTAL_API}/api/services/${svc}/${action}`, {
+      method: "POST",
+      signal: AbortSignal.timeout(120000),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (res.ok && payload.returncode === 0) {
+      toast(
+        `${svc} ${action === "start" ? "started" : "stopped"}`,
+        action === "start" ? "Container is warming up…" : "",
+        "success",
+      );
+    } else {
+      const err = (payload.stderr || payload.detail || "Unknown error").slice(0, 300);
+      toast(`${svc} ${action} failed`, err, "error");
+    }
+  } catch (e) {
+    toast(`${svc} ${action} failed`, String(e), "error");
+  } finally {
+    btn.classList.remove("loading");
+    btn.textContent = action === "start" ? "Start" : "Stop";
+    refreshAll();
+    // Follow-up refreshes to catch the moment /health comes up.
+    setTimeout(refreshAll, 3000);
+    setTimeout(refreshAll, 8000);
+  }
+}
+
+/* -------- Start / Stop all -------- */
+async function startAll() { await controlAll("start-all"); }
+async function stopAll()  { await controlAll("stop-all");  }
+
+async function controlAll(endpoint) {
+  if (!portalBackendUp) {
+    toast("Portal backend offline", "Cannot control services.", "error");
+    return;
+  }
+  const btn = document.getElementById(
+    endpoint === "start-all" ? "start-all-btn" : "stop-all-btn",
+  );
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = endpoint === "start-all" ? "Starting all…" : "Stopping all…";
+  try {
+    const res = await fetch(`${PORTAL_API}/api/services/${endpoint}`, {
+      method: "POST",
+      signal: AbortSignal.timeout(300000),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (res.ok) {
+      const failed = Object.entries(payload)
+        .filter(([_, r]) => r && r.returncode !== 0)
+        .map(([k]) => k);
+      if (failed.length === 0) {
+        toast(
+          endpoint === "start-all" ? "All services started" : "All services stopped",
+          "",
+          "success",
+        );
+      } else {
+        toast("Partial failure", "Failed: " + failed.join(", "), "error");
+      }
+    } else {
+      toast("Request failed", `HTTP ${res.status}`, "error");
+    }
+  } catch (e) {
+    toast("Request failed", String(e), "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = orig;
+    refreshAll();
+    setTimeout(refreshAll, 4000);
+    setTimeout(refreshAll, 10000);
+  }
+}
+
+/* -------- Wire card start/stop buttons -------- */
+document.querySelectorAll(".level-card").forEach(card => {
+  card.querySelectorAll(".btn[data-action]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (btn.classList.contains("disabled")) return;
+      controlService(card, btn.dataset.action);
+    });
+  });
+});
+
+refreshAll();
+setInterval(refreshAll, 10000);
+</script>
+
+</body>
+</html>
