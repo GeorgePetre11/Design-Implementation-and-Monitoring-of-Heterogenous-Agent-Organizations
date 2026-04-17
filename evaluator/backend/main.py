@@ -58,7 +58,7 @@ def evaluate(request: EvaluationRequest):
         session_id=session_id,
         event_type="evaluator_start",
         level=request.level,
-        data={"model": _agent.model, "question_length": len(request.question)},
+        data={"model": _agent.model, "question_length": len(request.question or "")},
     )
 
     t0 = time.time()

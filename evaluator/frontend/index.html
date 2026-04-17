@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Consulting Firm — Evaluator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 3rem;
+    }
+
+    header { text-align: center; margin-bottom: 1.5rem; }
+    header h1 { font-size: 1.75rem; font-weight: 700; color: #f8fafc; }
+    header p  { margin-top: 0.4rem; font-size: 0.9rem; color: #94a3b8; }
+    .badges {
+      display: flex; gap: 0.5rem; justify-content: center;
+      margin-top: 0.6rem; flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-block; background: #1e293b; border: 1px solid #334155;
+      color: #a78bfa; font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px;
+    }
+    .badge.api {
+      color: #7dd3fc; border-color: #334155; text-decoration: none; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .badge.api:hover { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
+
+    .card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 1.5rem; width: 100%; max-width: 900px; margin-bottom: 1rem;
+    }
+    .card h2 {
+      font-size: 0.82rem; font-weight: 600; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem;
+    }
+
+    textarea {
+      width: 100%; background: #0f1117; border: 1px solid #334155;
+      border-radius: 8px; color: #e2e8f0; font-size: 0.92rem; padding: 0.7rem 1rem;
+      resize: vertical; outline: none; transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    textarea:focus { border-color: #a78bfa; }
+    textarea::placeholder { color: #475569; }
+    textarea#question { min-height: 70px; }
+    textarea#report   { min-height: 180px; font-family: ui-monospace, monospace; font-size: 0.82rem; }
+
+    /* -- Drop zone -- */
+    .dropzone {
+      border: 2px dashed #334155; border-radius: 10px;
+      padding: 1.4rem 1rem; text-align: center; color: #94a3b8;
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 0.7rem; background: #0f1117;
+    }
+    .dropzone:hover { border-color: #a78bfa; color: #cbd5e1; }
+    .dropzone.drag  { border-color: #a78bfa; background: #1e1b4b; color: #e9d5ff; }
+    .dropzone strong { display: block; font-size: 0.95rem; color: #f8fafc; margin-bottom: 0.2rem; }
+    .dropzone small  { font-size: 0.74rem; color: #64748b; }
+    .dropzone .file-info {
+      margin-top: 0.5rem; font-size: 0.75rem; color: #a78bfa;
+    }
+    input[type="file"] { display: none; }
+
+    .row {
+      display: flex; gap: 0.75rem; margin-top: 0.85rem;
+      align-items: center; flex-wrap: wrap;
+    }
+    button.primary {
+      background: #a78bfa; color: #1e1b4b; border: none; border-radius: 8px;
+      padding: 0.65rem 1.5rem; font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: background 0.2s;
+    }
+    button.primary:hover:not(:disabled) { background: #c4b5fd; }
+    button.primary:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+
+    button.secondary {
+      background: transparent; color: #94a3b8; border: 1px solid #334155;
+      border-radius: 8px; padding: 0.55rem 1rem; font-size: 0.82rem; font-weight: 500;
+      cursor: pointer; transition: all 0.2s;
+    }
+    button.secondary:hover { border-color: #a78bfa; color: #a78bfa; }
+
+    #status { font-size: 0.82rem; color: #64748b; }
+    #status.running { color: #a78bfa; }
+    #status.done    { color: #4ade80; }
+    #status.error   { color: #f87171; }
+
+    /* -- Evaluation scorecard (matches level2/3/4 style) -- */
+    #eval-section { width: 100%; max-width: 900px; display: none; }
+    .eval-overall {
+      background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+      padding: 1.1rem 1.2rem; margin-bottom: 0.8rem; text-align: center;
+    }
+    .eval-overall .overall-label { font-size: 0.8rem; color: #94a3b8; }
+    .eval-overall .overall-score {
+      font-size: 2.2rem; font-weight: 800; color: #f8fafc; margin: 0.25rem 0;
+    }
+    .eval-overall .overall-summary {
+      font-size: 0.82rem; color: #cbd5e1; line-height: 1.5;
+      max-width: 600px; margin: 0 auto;
+    }
+    .eval-overall .dims {
+      margin-top: 0.7rem; font-size: 0.75rem; color: #94a3b8;
+      display: flex; justify-content: center; gap: 1.2rem; flex-wrap: wrap;
+    }
+    .eval-overall .dims strong { color: #f8fafc; }
+
+    .eval-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .eval-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 10px;
+      padding: 0.75rem 1rem;
+    }
+    .eval-card .criterion-name {
+      font-size: 0.78rem; font-weight: 600; color: #f8fafc;
+      text-transform: capitalize; margin-bottom: 0.35rem;
+    }
+    .eval-card .score-bar-bg {
+      background: #0f1117; border-radius: 4px; height: 8px;
+      overflow: hidden; margin-bottom: 0.35rem;
+    }
+    .eval-card .score-bar {
+      height: 100%; border-radius: 4px; transition: width 0.8s ease;
+    }
+    .eval-card .score-value {
+      font-size: 0.88rem; font-weight: 700; float: right; margin-top: -1.45rem;
+    }
+    .eval-card .justification {
+      font-size: 0.72rem; color: #94a3b8; line-height: 1.45;
+    }
+
+    .critical-issues {
+      background: #1e293b; border: 1px solid #7f1d1d; border-radius: 10px;
+      padding: 0.8rem 1rem; margin-top: 0.7rem;
+    }
+    .critical-issues h3 {
+      font-size: 0.78rem; font-weight: 600; color: #fca5a5;
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem;
+    }
+    .critical-issues ul { padding-left: 1.2rem; }
+    .critical-issues li {
+      font-size: 0.78rem; color: #cbd5e1; margin-bottom: 0.25rem;
+    }
+
+    .metrics-bar {
+      display: flex; gap: 0.7rem; width: 100%; max-width: 900px;
+      margin-bottom: 0.85rem; flex-wrap: wrap;
+    }
+    .metric {
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      padding: 0.35rem 0.8rem; font-size: 0.76rem; color: #94a3b8;
+    }
+    .metric span { color: #f8fafc; font-weight: 600; margin-left: 0.3rem; }
+
+    @media (max-width: 700px) { .eval-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Evaluator Agent</h1>
+  <p>Drop a finished consulting report to get a 6-criterion scorecard</p>
+  <div class="badges">
+    <span class="badge">Kimi K2.5 · Independent Judge</span>
+    <a class="badge api" href="http://localhost:8005/docs" target="_blank">API Docs</a>
+  </div>
+</header>
+
+<div class="card">
+  <h2>Consulting report</h2>
+
+  <div class="dropzone" id="dropzone">
+    <strong>Drop a report file here</strong>
+    <small>or click to select · .md, .txt, .pdf supported</small>
+    <div class="file-info" id="file-info"></div>
+    <input type="file" id="file-input" accept=".md,.txt,.pdf,.markdown,text/plain,text/markdown,application/pdf" />
+  </div>
+
+  <textarea id="report" placeholder="…or paste the report text directly"></textarea>
+
+  <div class="row">
+    <button class="primary" id="submit-btn">Evaluate</button>
+    <button class="secondary" id="clear-btn">Clear</button>
+    <span id="status">Ready</span>
+  </div>
+</div>
+
+<div class="metrics-bar" id="metrics-bar" style="display:none">
+  <div class="metric">Session <span id="m-session">—</span></div>
+  <div class="metric">Model <span id="m-model">—</span></div>
+  <div class="metric">Latency <span id="m-latency">—</span></div>
+  <div class="metric">Report chars <span id="m-chars">—</span></div>
+</div>
+
+<div id="eval-section">
+  <div class="eval-overall" id="eval-overall"></div>
+  <div class="eval-grid" id="eval-grid"></div>
+  <div class="critical-issues" id="critical-issues" style="display:none">
+    <h3>Critical issues</h3>
+    <ul id="critical-issues-list"></ul>
+  </div>
+</div>
+
+<!-- pdf.js for client-side PDF text extraction -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs" type="module"></script>
+<script type="module">
+  import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs";
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs";
+  window.__pdfjs = pdfjsLib;
+</script>
+
+<script>
+const API = "http://localhost:8005";
+
+const dropzone   = document.getElementById("dropzone");
+const fileInput  = document.getElementById("file-input");
+const fileInfo   = document.getElementById("file-info");
+const reportTA   = document.getElementById("report");
+const submitBtn  = document.getElementById("submit-btn");
+const statusEl   = document.getElementById("status");
+
+function setStatus(text, cls) {
+  statusEl.textContent = text;
+  statusEl.className = cls || "";
+}
+
+function scoreColor(s) {
+  if (s >= 8) return "#22c55e";
+  if (s >= 6) return "#eab308";
+  if (s >= 4) return "#f97316";
+  return "#ef4444";
+}
+
+/* ---------- file handling ---------- */
+dropzone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", e => {
+  if (e.target.files[0]) handleFile(e.target.files[0]);
+});
+["dragenter", "dragover"].forEach(ev =>
+  dropzone.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation();
+    dropzone.classList.add("drag");
+  })
+);
+["dragleave", "drop"].forEach(ev =>
+  dropzone.addEventListener(ev, e => {
+    e.preventDefault(); e.stopPropagation();
+    dropzone.classList.remove("drag");
+  })
+);
+dropzone.addEventListener("drop", e => {
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile(f);
+});
+
+async function handleFile(file) {
+  fileInfo.textContent = `Loading ${file.name}…`;
+  try {
+    const name = file.name.toLowerCase();
+    let text = "";
+    if (name.endsWith(".pdf") || file.type === "application/pdf") {
+      text = await extractPdfText(file);
+    } else {
+      text = await file.text();
+    }
+    reportTA.value = text;
+    fileInfo.textContent = `Loaded: ${file.name} (${text.length.toLocaleString()} chars)`;
+    setStatus("Ready", "");
+  } catch (err) {
+    fileInfo.textContent = "";
+    setStatus("Failed to read file: " + err.message, "error");
+  }
+}
+
+async function extractPdfText(file) {
+  if (!window.__pdfjs) {
+    throw new Error("PDF library not ready yet — retry in a moment");
+  }
+  const buf = await file.arrayBuffer();
+  const doc = await window.__pdfjs.getDocument({ data: buf }).promise;
+  const parts = [];
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i);
+    const content = await page.getTextContent();
+    parts.push(content.items.map(it => it.str).join(" "));
+  }
+  return parts.join("\n\n");
+}
+
+/* ---------- submission ---------- */
+function clearAll() {
+  reportTA.value = "";
+  fileInput.value = "";
+  fileInfo.textContent = "";
+  document.getElementById("eval-section").style.display = "none";
+  document.getElementById("metrics-bar").style.display = "none";
+  setStatus("Ready", "");
+}
+
+async function runEvaluation() {
+  const report = reportTA.value.trim();
+  if (!report) { setStatus("Please drop or paste a report.", "error"); return; }
+
+  submitBtn.disabled = true;
+  setStatus("Scoring report… this can take 20–60s", "running");
+  document.getElementById("eval-section").style.display = "none";
+
+  const t0 = performance.now();
+  try {
+    const res = await fetch(`${API}/evaluate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ report }),
+    });
+    const payload = await res.json();
+    if (!res.ok) {
+      throw new Error(formatError(payload) || `HTTP ${res.status}`);
+    }
+    const elapsed = Math.round(performance.now() - t0);
+    renderResult(payload, report, elapsed);
+    setStatus("Evaluation complete", "done");
+  } catch (err) {
+    console.error("Evaluation failed:", err);
+    setStatus("Error: " + err.message, "error");
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
+
+submitBtn.addEventListener("click", runEvaluation);
+document.getElementById("clear-btn").addEventListener("click", clearAll);
+
+function renderResult(payload, report, elapsedMs) {
+  const sc = payload.scorecard || {};
+  const scores = sc.evaluation || {};
+  const overall = sc.overall_score || 0;
+
+  document.getElementById("m-session").textContent =
+    (payload.session_id || "—").slice(0, 8);
+  document.getElementById("m-model").textContent = payload.model || "—";
+  document.getElementById("m-latency").textContent =
+    (payload.latency_ms != null ? payload.latency_ms : elapsedMs) + " ms";
+  document.getElementById("m-chars").textContent = report.length.toLocaleString();
+  document.getElementById("metrics-bar").style.display = "flex";
+
+  const ov = document.getElementById("eval-overall");
+  ov.innerHTML = `
+    <div class="overall-label">Overall score</div>
+    <div class="overall-score" style="color:${scoreColor(overall)}">${overall}/10</div>
+    <div class="overall-summary">${escapeHtml(sc.summary || "")}</div>
+    <div class="dims">
+      <div>Strongest: <strong>${escapeHtml(sc.strongest_dimension || "—")}</strong></div>
+      <div>Weakest: <strong>${escapeHtml(sc.weakest_dimension || "—")}</strong></div>
+    </div>
+  `;
+
+  const grid = document.getElementById("eval-grid");
+  grid.innerHTML = "";
+  const criteria = [
+    "completeness", "accuracy", "coherence",
+    "structure", "actionability", "critical_depth",
+  ];
+  for (const c of criteria) {
+    const item = scores[c] || { score: 0, justification: "N/A" };
+    const pct = (item.score / 10) * 100;
+    const color = scoreColor(item.score);
+    grid.innerHTML += `
+      <div class="eval-card">
+        <div class="criterion-name">
+          ${c.replace("_", " ")}
+          <span class="score-value" style="color:${color}">${item.score}/10</span>
+        </div>
+        <div class="score-bar-bg">
+          <div class="score-bar" style="width:${pct}%;background:${color}"></div>
+        </div>
+        <div class="justification">${escapeHtml(item.justification)}</div>
+      </div>
+    `;
+  }
+
+  const issues = sc.critical_issues || [];
+  const issuesBox = document.getElementById("critical-issues");
+  const issuesList = document.getElementById("critical-issues-list");
+  if (issues.length) {
+    issuesList.innerHTML = issues.map(i => `<li>${escapeHtml(i)}</li>`).join("");
+    issuesBox.style.display = "block";
+  } else {
+    issuesBox.style.display = "none";
+  }
+
+  document.getElementById("eval-section").style.display = "block";
+}
+
+function formatError(payload) {
+  if (!payload) return "";
+  const d = payload.detail;
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) {
+    return d.map(e => {
+      const loc = Array.isArray(e.loc) ? e.loc.join(".") : "";
+      return loc ? `${loc}: ${e.msg}` : e.msg;
+    }).join("; ");
+  }
+  if (d && typeof d === "object") return JSON.stringify(d);
+  return "";
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+</script>
+
+</body>
+</html>

@@ -166,7 +166,7 @@ class EvaluatorAgent:
         return True
 
     # ------------------------------------------------------------------
-    def evaluate(self, question: str, report: str) -> dict:
+    def evaluate(self, question: str | None, report: str) -> dict:
         """Score a consulting report. Returns a validated scorecard dict.
 
         Raises ConnectionError if the API is unreachable, ValueError if the
@@ -205,12 +205,22 @@ class EvaluatorAgent:
         raise RuntimeError(f"Evaluator exhausted retries: {last_err}")
 
     # ------------------------------------------------------------------
-    def _call_api(self, question: str, report: str) -> str:
-        user_message = (
-            f"## Original Client Question\n{question}\n\n"
-            f"## Consulting Report to Evaluate\n{report}"
-        )
-        response = self._client.chat.completions.create(
+    def _call_api(self, question: str | None, report: str) -> str:
+        q = (question or "").strip()
+        if q:
+            user_message = (
+                f"## Original Client Question\n{q}\n\n"
+                f"## Consulting Report to Evaluate\n{report}"
+            )
+        else:
+            user_message = (
+                "## Original Client Question\n"
+                "(not provided -- infer the implicit business question from "
+                "the report itself, and judge completeness against whatever "
+                "scope the report claims to address)\n\n"
+                f"## Consulting Report to Evaluate\n{report}"
+            )
+        kwargs = dict(
             model=self.model,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
@@ -219,6 +229,15 @@ class EvaluatorAgent:
                 {"role": "user", "content": user_message},
             ],
         )
+        # Ask for strict JSON when the backend supports it; fall back silently
+        # if the server rejects the parameter (older OpenAI-compat endpoints).
+        try:
+            response = self._client.chat.completions.create(
+                response_format={"type": "json_object"},
+                **kwargs,
+            )
+        except (APIError, TypeError):
+            response = self._client.chat.completions.create(**kwargs)
         return response.choices[0].message.content or ""
 
     # ------------------------------------------------------------------
@@ -231,16 +250,54 @@ class EvaluatorAgent:
             text = re.sub(r"^```(?:json)?\s*", "", text)
             text = re.sub(r"\s*```\s*$", "", text)
 
+        # Extract the outermost JSON object if there's preamble/trailing text
+        m = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        candidate = m.group(0) if m else text
+
         try:
-            return json.loads(text)
+            return json.loads(candidate)
         except json.JSONDecodeError:
             pass
 
-        # Fall back: extract the outermost JSON object
-        m = re.search(r"\{.*\}", text, flags=re.DOTALL)
-        if not m:
-            raise json.JSONDecodeError("No JSON object found in response", text, 0)
-        return json.loads(m.group(0))
+        # Last-ditch: repair the most common LLM quirk -- raw newlines inside
+        # string values -- and try again.
+        repaired = self._repair_json_strings(candidate)
+        return json.loads(repaired)
+
+    @staticmethod
+    def _repair_json_strings(text: str) -> str:
+        """Escape raw control chars (newline/tab/cr) that appear inside
+        JSON string literals. Leaves structural whitespace untouched."""
+        out = []
+        in_string = False
+        escape = False
+        for ch in text:
+            if in_string:
+                if escape:
+                    out.append(ch)
+                    escape = False
+                    continue
+                if ch == "\\":
+                    out.append(ch)
+                    escape = True
+                    continue
+                if ch == '"':
+                    out.append(ch)
+                    in_string = False
+                    continue
+                if ch == "\n":
+                    out.append("\\n")
+                elif ch == "\r":
+                    out.append("\\r")
+                elif ch == "\t":
+                    out.append("\\t")
+                else:
+                    out.append(ch)
+            else:
+                if ch == '"':
+                    in_string = True
+                out.append(ch)
+        return "".join(out)
 
     # ------------------------------------------------------------------
     def _validate_scorecard(self, scorecard: dict) -> None:

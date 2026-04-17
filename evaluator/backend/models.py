@@ -18,7 +18,13 @@ class EvaluationRequest(BaseModel):
     """Inputs accepted by the Evaluator. The agent receives ONLY these two
     fields -- no intermediate outputs, no agent logs, no metadata."""
 
-    question: str = Field(..., description="The original client business question.")
+    question: str | None = Field(
+        default=None,
+        description=(
+            "Optional original client business question. If omitted, the "
+            "evaluator infers the implicit question from the report itself."
+        ),
+    )
     report: str = Field(..., description="The final consulting report to score.")
     session_id: str | None = Field(
         default=None,

@@ -258,7 +258,7 @@
         <span id="global-status">Checking services…</span>
       </span>
       <span class="header-badge">5 Services</span>
-      <span class="header-badge">Ports 3001–3004 · 8001–8005</span>
+      <span class="header-badge">Ports 3001–3005 · 8001–8005</span>
     </div>
     <div class="master-controls">
       <button class="master-btn start" id="start-all-btn" onclick="startAll()">Start All</button>
@@ -449,12 +449,13 @@
         <span class="agent-chip">Rubric Scoring</span>
       </div>
       <div class="card-meta">
+        <span>Frontend <strong>:3005</strong></span>
         <span>API <strong>:8005</strong></span>
         <span>Model <strong>Kimi K2.5</strong></span>
       </div>
       <div class="card-actions">
-        <a class="btn primary" href="http://localhost:8005/docs" target="_blank">API Docs</a>
-        <a class="btn secondary" href="http://localhost:8005/health" target="_blank">Health</a>
+        <a class="btn primary" href="http://localhost:3005/" target="_blank">Open App</a>
+        <a class="btn secondary" href="http://localhost:8005/docs" target="_blank">API Docs</a>
         <button class="btn start" data-action="start">Start</button>
         <button class="btn stop"  data-action="stop">Stop</button>
       </div>

@@ -11,3 +11,13 @@ services:
       - EVALUATOR_BASE_URL=${EVALUATOR_BASE_URL:-https://api.moonshot.ai/v1}
       - EVALUATOR_MODEL=${EVALUATOR_MODEL:-kimi-k2.5}
     restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "3005:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - evaluator
+    restart: unless-stopped
