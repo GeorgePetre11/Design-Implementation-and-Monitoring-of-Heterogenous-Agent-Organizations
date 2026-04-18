@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,35 +7,54 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root[data-theme="dark"] {
+      --bg: #0a0c10; --bg-panel: #111827; --bg-card: #1f2937;
+      --border: #1f2937; --border-light: #374151;
+      --text: #e2e8f0; --text-heading: #f8fafc;
+      --text-muted: #64748b; --text-content: #cbd5e1;
+      --bg-bar: #0f1117;
+    }
+    :root[data-theme="light"] {
+      --bg: #f1f5f9; --bg-panel: #ffffff; --bg-card: #f8fafc;
+      --border: #e2e8f0; --border-light: #cbd5e1;
+      --text: #1e293b; --text-heading: #0f172a;
+      --text-muted: #64748b; --text-content: #475569;
+      --bg-bar: #e2e8f0;
+    }
+
     body {
       font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0a0c10;
-      color: #e2e8f0;
+      background: var(--bg); color: var(--text);
       min-height: 100vh;
+      transition: background 0.3s, color 0.3s;
     }
 
     .dash-header {
-      background: #111827;
-      border-bottom: 1px solid #1f2937;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
       padding: 0.8rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
     }
-    .dash-header h1 { font-size: 1.05rem; font-weight: 700; color: #f8fafc; }
+    .dash-header h1 { font-size: 1.05rem; font-weight: 700; color: var(--text-heading); }
     .dash-header h1 span { color: #a78bfa; }
     .header-right { display: flex; align-items: center; gap: 1rem; }
-    .ws-indicator { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #64748b; }
+    .ws-indicator { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--text-muted); }
     .ws-dot { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; transition: background 0.3s; }
     .ws-dot.connected { background: #22c55e; }
+
+    .theme-toggle {
+      background: var(--bg-card); border: 1px solid var(--border-light); color: var(--text-muted);
+      padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.7rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .theme-toggle:hover { border-color: #a78bfa; color: #a78bfa; }
+
     .pipeline-badge {
       display: inline-block; font-size: 0.72rem; font-weight: 600;
       padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em;
     }
-    .pipeline-badge.idle     { background: #1f2937; color: #64748b; }
+    .pipeline-badge.idle     { background: var(--bg-card); color: var(--text-muted); }
     .pipeline-badge.running  { background: #1e3a5f; color: #7dd3fc; animation: pulse 1.5s infinite; }
     .pipeline-badge.done     { background: #14532d; color: #4ade80; }
     .pipeline-badge.error    { background: #7f1d1d; color: #fca5a5; }
@@ -54,13 +73,11 @@
     /* -- Pipeline Visualization -- */
     .pipeline-viz {
       grid-column: 1 / -1;
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 12px;
-      padding: 1.2rem 1.5rem;
+      background: var(--bg-panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.2rem 1.5rem;
     }
     .pipeline-viz h2 {
-      font-size: 0.78rem; color: #64748b; text-transform: uppercase;
+      font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase;
       letter-spacing: 0.08em; margin-bottom: 1rem;
     }
     .pipeline-flow {
@@ -68,11 +85,11 @@
       gap: 0; flex-wrap: wrap;
     }
     .agent-node {
-      background: #1f2937; border: 2px solid #374151; border-radius: 12px;
+      background: var(--bg-card); border: 2px solid var(--border-light); border-radius: 12px;
       padding: 0.7rem 0.9rem; min-width: 130px; text-align: center;
       position: relative; transition: all 0.4s ease;
     }
-    .agent-node.idle      { border-color: #374151; }
+    .agent-node.idle      { border-color: var(--border-light); }
     .agent-node.working   { border-color: #3b82f6; box-shadow: 0 0 16px rgba(59,130,246,0.25); }
     .agent-node.done      { border-color: #22c55e; box-shadow: 0 0 12px rgba(34,197,94,0.15); }
     .agent-node.reviewing { border-color: #eab308; box-shadow: 0 0 14px rgba(234,179,8,0.2); }
@@ -80,26 +97,26 @@
     .agent-node.approved  { border-color: #22c55e; box-shadow: 0 0 12px rgba(34,197,94,0.15); }
     .agent-node.error     { border-color: #ef4444; box-shadow: 0 0 12px rgba(239,68,68,0.2); }
     .agent-icon { font-size: 1.3rem; margin-bottom: 0.2rem; }
-    .agent-name { font-size: 0.75rem; font-weight: 600; color: #f8fafc; }
-    .agent-model { font-size: 0.62rem; color: #64748b; margin-top: 0.1rem; }
+    .agent-name { font-size: 0.75rem; font-weight: 600; color: var(--text-heading); }
+    .agent-model { font-size: 0.62rem; color: var(--text-muted); margin-top: 0.1rem; }
     .agent-status-badge {
       display: inline-block; font-size: 0.6rem; font-weight: 600;
       padding: 0.1rem 0.4rem; border-radius: 999px; margin-top: 0.3rem;
       text-transform: uppercase; letter-spacing: 0.04em;
     }
-    .agent-status-badge.idle      { background: #1f2937; color: #64748b; }
+    .agent-status-badge.idle      { background: var(--bg-card); color: var(--text-muted); }
     .agent-status-badge.working   { background: #1e3a5f; color: #7dd3fc; animation: pulse 1.5s infinite; }
     .agent-status-badge.done      { background: #14532d; color: #4ade80; }
     .agent-status-badge.reviewing { background: #422006; color: #fbbf24; }
     .agent-status-badge.revising  { background: #7c2d12; color: #fdba74; animation: pulse 1s infinite; }
     .agent-status-badge.approved  { background: #14532d; color: #4ade80; }
     .agent-status-badge.error     { background: #7f1d1d; color: #fca5a5; }
-    .agent-elapsed { font-size: 0.6rem; color: #94a3b8; margin-top: 0.15rem; }
+    .agent-elapsed { font-size: 0.6rem; color: var(--text-muted); margin-top: 0.15rem; }
     .agent-revision { font-size: 0.55rem; color: #f97316; margin-top: 0.1rem; }
 
     .flow-arrow {
       display: flex; align-items: center; padding: 0 0.15rem;
-      color: #374151; font-size: 1.2rem; transition: color 0.4s;
+      color: var(--border-light); font-size: 1.2rem; transition: color 0.4s;
     }
     .flow-arrow.active { color: #3b82f6; }
     .flow-arrow.done   { color: #22c55e; }
@@ -108,18 +125,18 @@
 
     /* -- Activity Log -- */
     .activity-log {
-      background: #111827; border: 1px solid #1f2937; border-radius: 12px;
+      background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px;
       padding: 1rem; overflow: hidden; display: flex; flex-direction: column;
     }
-    .activity-log h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+    .activity-log h2 { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
     .log-scroll { flex: 1; overflow-y: auto; max-height: 420px; }
     .log-entry {
       display: flex; gap: 0.5rem; align-items: flex-start;
-      padding: 0.35rem 0; border-bottom: 1px solid #1f2937;
+      padding: 0.35rem 0; border-bottom: 1px solid var(--border);
       font-size: 0.75rem; animation: slideIn 0.3s ease;
     }
     @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-    .log-time { color: #475569; white-space: nowrap; min-width: 55px; font-variant-numeric: tabular-nums; }
+    .log-time { color: var(--text-muted); white-space: nowrap; min-width: 55px; font-variant-numeric: tabular-nums; }
     .log-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
     .log-dot.pipeline_start, .log-dot.pipeline_done { background: #a78bfa; }
     .log-dot.pipeline_error { background: #ef4444; }
@@ -129,32 +146,32 @@
     .log-dot.agent_revising  { background: #f97316; }
     .log-dot.agent_approved  { background: #22c55e; }
     .log-dot.agent_error    { background: #ef4444; }
-    .log-msg { color: #cbd5e1; flex: 1; }
+    .log-msg { color: var(--text-content); flex: 1; }
 
     /* -- Metrics Panel -- */
-    .metrics-panel { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 1rem; }
-    .metrics-panel h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
-    .metric-card { background: #1f2937; border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
-    .metric-card .label { font-size: 0.7rem; color: #64748b; margin-bottom: 0.15rem; }
-    .metric-card .value { font-size: 1.1rem; font-weight: 700; color: #f8fafc; }
+    .metrics-panel { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+    .metrics-panel h2 { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+    .metric-card { background: var(--bg-card); border-radius: 8px; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; }
+    .metric-card .label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.15rem; }
+    .metric-card .value { font-size: 1.1rem; font-weight: 700; color: var(--text-heading); }
     .metric-card .value.running { color: #7dd3fc; }
     .metric-card .value.done { color: #4ade80; }
     .agent-times { margin-top: 0.8rem; }
     .agent-time-row {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0.3rem 0; border-bottom: 1px solid #1f293744; font-size: 0.72rem;
+      padding: 0.3rem 0; border-bottom: 1px solid var(--border); font-size: 0.72rem;
     }
-    .agent-time-row .name { color: #cbd5e1; min-width: 90px; }
-    .agent-time-row .time-val { color: #94a3b8; font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
-    .agent-time-row .bar-bg { flex: 1; background: #0f1117; border-radius: 3px; height: 5px; margin: 0 0.5rem; overflow: hidden; }
+    .agent-time-row .name { color: var(--text-content); min-width: 90px; }
+    .agent-time-row .time-val { color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 40px; text-align: right; }
+    .agent-time-row .bar-bg { flex: 1; background: var(--bg-bar); border-radius: 3px; height: 5px; margin: 0 0.5rem; overflow: hidden; }
     .agent-time-row .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
     .revision-badge-small { font-size: 0.6rem; color: #f97316; margin-left: 0.3rem; }
 
     /* -- Question preview -- */
-    .question-preview { background: #111827; border: 1px solid #1f2937; border-radius: 12px; padding: 1rem; }
-    .question-preview h2 { font-size: 0.78rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
-    .question-preview p { font-size: 0.82rem; color: #e2e8f0; line-height: 1.5; font-style: italic; }
-    .question-preview .empty { color: #475569; font-style: normal; }
+    .question-preview { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+    .question-preview h2 { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.5rem; }
+    .question-preview p { font-size: 0.82rem; color: var(--text); line-height: 1.5; font-style: italic; }
+    .question-preview .empty { color: var(--text-muted); font-style: normal; }
 
     @media (max-width: 900px) {
       .dash-grid { grid-template-columns: 1fr; }
@@ -168,6 +185,7 @@
 <div class="dash-header">
   <h1>Monitoring Dashboard <span style="font-size:0.75rem;color:#fbbf24;font-weight:400;margin-left:0.5rem">Level 4 — Hybrid</span></h1>
   <div class="header-right">
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">Light Mode</button>
     <span class="pipeline-badge idle" id="pipeline-badge">Idle</span>
     <div class="ws-indicator">
       <div class="ws-dot" id="ws-dot"></div>
@@ -205,6 +223,11 @@
         <div class="label">Total Revisions</div>
         <div class="value" id="metric-revisions" style="color:#f97316">0</div>
       </div>
+      <div class="metric-card">
+        <div class="label">Evaluator Score</div>
+        <div class="value" id="metric-eval-score">—</div>
+        <div class="label" id="metric-eval-weakest" style="margin-top:0.25rem;font-size:0.65rem;"></div>
+      </div>
       <div class="agent-times" id="agent-times"></div>
     </div>
   </div>
@@ -214,8 +237,8 @@
     <div class="log-scroll" id="log-scroll">
       <div class="log-entry">
         <span class="log-time">—</span>
-        <span class="log-dot" style="background:#475569"></span>
-        <span class="log-msg" style="color:#475569">Waiting for events...</span>
+        <span class="log-dot" style="background:var(--text-muted)"></span>
+        <span class="log-msg" style="color:var(--text-muted)">Waiting for events...</span>
       </div>
     </div>
   </div>
@@ -231,12 +254,31 @@ const AGENTS = [
   { key: "financial_analyst",   icon: "FA", label: "Financial Analyst",   color: "#f59e0b" },
   { key: "risk_analyst",        icon: "RA", label: "Risk Analyst",        color: "#f87171" },
   { key: "strategy_consultant", icon: "SC", label: "Strategy Consultant", color: "#e879f9" },
-  // Evaluator runs in a separate standalone app powered by Kimi 2.5.
+  { key: "evaluator",           icon: "EV", label: "Evaluator",           color: "#fbbf24" },
 ];
 
 let ws = null;
 let reconnectTimer = null;
 let pollTimer = null;
+
+/* -- Theme toggle -- */
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute("data-theme");
+  const next = current === "dark" ? "light" : "dark";
+  html.setAttribute("data-theme", next);
+  document.getElementById("theme-btn").textContent = next === "dark" ? "Light Mode" : "Dark Mode";
+  localStorage.setItem("theme", next);
+}
+(function initTheme() {
+  const saved = localStorage.getItem("theme");
+  if (saved) {
+    document.documentElement.setAttribute("data-theme", saved);
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("theme-btn").textContent = saved === "dark" ? "Light Mode" : "Dark Mode";
+    });
+  }
+})();
 
 function buildPipelineFlow() {
   const container = document.getElementById("pipeline-flow");
@@ -306,6 +348,24 @@ function renderState(data) {
   // Count total revisions
   const totalRevisions = Object.values(data.revisions || {}).filter(r => r.was_revised).length;
   document.getElementById("metric-revisions").textContent = totalRevisions;
+
+  // Evaluator scorecard summary
+  const sc = data.scorecard;
+  const scoreEl = document.getElementById("metric-eval-score");
+  const weakestEl = document.getElementById("metric-eval-weakest");
+  if (sc && sc.overall_score != null) {
+    const overall = sc.overall_score;
+    const color = overall >= 8 ? "#4ade80" : overall >= 6 ? "#fbbf24" : overall >= 4 ? "#f97316" : "#ef4444";
+    scoreEl.textContent = `${overall}/10`;
+    scoreEl.style.color = color;
+    let sub = `Round ${data.scorecard_round || 1}`;
+    if (sc.weakest_dimension) sub += ` · weakest: ${sc.weakest_dimension.replace(/_/g, " ")}`;
+    weakestEl.textContent = sub;
+  } else {
+    scoreEl.textContent = "—";
+    scoreEl.style.color = "";
+    weakestEl.textContent = "";
+  }
 
   const qBox = document.getElementById("question-box");
   if (data.question) {

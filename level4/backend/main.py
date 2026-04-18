@@ -46,7 +46,6 @@ def health():
         "level": 4,
         "workflow": "hybrid_hierarchical",
         "agents": agents.AGENT_MODELS,
-        # The Evaluator runs in a separate standalone app powered by Kimi 2.5.
     }
 
 

@@ -33,7 +33,7 @@ One generic agent with no system prompt specialization. Receives a business ques
 **Level 3 — Six Agents (Full Specialization):**
 - Engagement Manager Agent: breaks the question into workstreams, assigns tasks, manages workflow. Acts as project lead.
 - Market Researcher Agent: analyzes the target market — size, growth, competitors, trends, customer segments. Only does market research — no financials, no risk.
-- Financial Analyst Agent: handles all numbers — costs, revenue projections, ROI, break-even analysis, financial modeling. Only works with quantitative data.
+- Financial Analyst Agent: handles all numbers — costs, revenue projections, ROI, break-even analysis, financial modeling. Only works w ith quantitative data.
 - Risk Analyst Agent: identifies what could go wrong — regulatory risks, market risks, operational risks, competitive threats. Assesses probability and impact. Does NOT propose solutions — only identifies and rates risks.
 - Strategy Consultant Agent: receives market research, financial analysis, AND risk assessment, then synthesizes everything into a final recommendation with options (e.g., Option A: aggressive expansion, Option B: phased approach, Option C: don't proceed). Writes the final consulting report.
 - Evaluator Agent: independent final judge. Scores on a rubric.

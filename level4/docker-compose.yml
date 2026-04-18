@@ -10,12 +10,11 @@ services:
       - OLLAMA_HOST=http://host.docker.internal:11434
       - ENGAGEMENT_MANAGER_MODEL=qwen3:8b
       - MARKET_RESEARCHER_MODEL=qwen3:14b
-      - FINANCIAL_ANALYST_MODEL=qwen3:14b
+      - FINANCIAL_ANALYST_MODEL=gpt-oss:20b
       - RISK_ANALYST_MODEL=qwen3:14b
       - STRATEGY_CONSULTANT_MODEL=qwen3.5:27b
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      # External quality judge (standalone evaluator service, Kimi K2.5)
       - EVALUATOR_URL=${EVALUATOR_URL:-http://host.docker.internal:8005}
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
     restart: unless-stopped

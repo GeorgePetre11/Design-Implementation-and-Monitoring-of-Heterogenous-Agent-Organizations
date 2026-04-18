@@ -51,6 +51,8 @@ class PipelineState:
     agents: dict[str, AgentState] = field(default_factory=dict)
     activity_log: list[dict] = field(default_factory=list)
     revisions: dict[str, dict] = field(default_factory=dict)
+    scorecard: dict | None = None
+    scorecard_round: int = 0
 
     def to_dict(self) -> dict:
         elapsed = None
@@ -76,6 +78,8 @@ class PipelineState:
             },
             "activity_log": self.activity_log[-50:],
             "revisions": self.revisions,
+            "scorecard": self.scorecard,
+            "scorecard_round": self.scorecard_round,
         }
 
 
@@ -132,6 +136,19 @@ def update_agent(name: str, status: str, **kwargs):
         "error": f"{agent.display_name} failed: {agent.error or 'unknown'}",
     }
     _log_activity(f"agent_{status}", labels.get(status, f"{agent.display_name}: {status}"))
+    _broadcast_state()
+
+
+def set_scorecard(scorecard: dict, round_num: int):
+    """Store the latest evaluator scorecard and broadcast."""
+    _state.scorecard = scorecard
+    _state.scorecard_round = round_num
+    overall = scorecard.get("overall_score")
+    weakest = scorecard.get("weakest_dimension")
+    msg = f"Evaluator round {round_num}: overall {overall}/10"
+    if weakest:
+        msg += f", weakest: {weakest}"
+    _log_activity("agent_done", msg)
     _broadcast_state()
 
 

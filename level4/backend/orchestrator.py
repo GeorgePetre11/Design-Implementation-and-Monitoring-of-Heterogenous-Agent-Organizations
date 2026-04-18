@@ -15,8 +15,7 @@ in a hierarchical hybrid structure:
     -> RA assesses risks       -> EM reviews -> (revision?) -> approved
     -> SC writes report        -> EM reviews -> (revision?) -> approved
 
-(The Evaluator runs in a separate standalone app powered by Kimi 2.5
-and is not invoked from this orchestrator.)
+Note: The Evaluator is a separate application (not part of this pipeline).
 
 This module implements constraint layer #4 (orchestrator routing) plus
 the hierarchical review loop that makes Level 4 distinct from Level 3.
@@ -24,6 +23,7 @@ the hierarchical review loop that makes Level 4 distinct from Level 3.
 
 import json
 import os
+import re
 import time
 from typing import Generator
 
@@ -40,13 +40,150 @@ from agents import (
 import monitor
 import state
 
-MAX_RETRIES = 2       # retry on JSON parse failure
-MAX_REVISIONS = 1     # max EM-requested revisions per agent
+MAX_RETRIES = 2                 # retry on JSON parse failure
+MAX_REVISIONS = 1               # max EM-requested revisions per agent
+MAX_EVAL_ITERATIONS = 2         # max evaluator rounds (up to 1 revision driven by scorecard)
+EVAL_CRITERION_THRESHOLD = 5    # any criterion below this triggers a revision
+EVALUATOR_URL = os.environ.get("EVALUATOR_URL", "http://host.docker.internal:8005")
+EVALUATOR_TIMEOUT = 180         # seconds
 
-# Standalone evaluator service (Kimi K2.5 judge). Optional -- if unreachable,
-# the pipeline still succeeds and simply emits no evaluation event.
-EVALUATOR_URL = os.getenv("EVALUATOR_URL", "http://host.docker.internal:8005")
-EVALUATOR_TIMEOUT = int(os.getenv("EVALUATOR_TIMEOUT", "180"))
+
+def _call_evaluator(question: str, report: str, session_id: str) -> dict:
+    """POST to the Kimi K2.5 evaluator service and return the scorecard dict."""
+    response = requests.post(
+        f"{EVALUATOR_URL}/evaluate",
+        json={"question": question, "report": report, "level": 4, "session_id": session_id},
+        timeout=EVALUATOR_TIMEOUT,
+    )
+    response.raise_for_status()
+    return response.json().get("scorecard", {})
+
+
+def _failing_criteria(scorecard: dict) -> list[tuple[str, int, str]]:
+    """Return [(criterion, score, justification), ...] for criteria below threshold."""
+    evaluation = scorecard.get("evaluation", {}) or {}
+    failing = []
+    for name, data in evaluation.items():
+        if not isinstance(data, dict):
+            continue
+        score = data.get("score")
+        if isinstance(score, (int, float)) and score < EVAL_CRITERION_THRESHOLD:
+            failing.append((name, int(score), data.get("justification", "")))
+    return failing
+
+
+def _build_evaluator_feedback(scorecard: dict, failing: list[tuple[str, int, str]]) -> str:
+    """Build a focused feedback string for the Strategy Consultant's revision."""
+    lines = ["The independent Evaluator scored the report below acceptable quality on the following criteria:"]
+    for name, score, justification in failing:
+        pretty = name.replace("_", " ").title()
+        lines.append(f"\n- {pretty} ({score}/10): {justification}")
+    issues = scorecard.get("critical_issues") or []
+    if issues:
+        lines.append("\n\nCritical issues identified:")
+        for issue in issues:
+            lines.append(f"- {issue}")
+    lines.append(
+        "\n\nRewrite the report to address every point above. Keep every claim grounded "
+        "in the market research, financial analysis, and risk assessment already provided. "
+        "Do not introduce new facts."
+    )
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Budget validation helpers (Python-level, not LLM-dependent)
+# ---------------------------------------------------------------------------
+
+def _extract_budget(question: str) -> float | None:
+    """Try to extract a budget amount from the client question text."""
+    patterns = [
+        r'budget[^€$£]*?[€$£]\s*([\d,.]+)\s*([KkMm])?',
+        r'[€$£]\s*([\d,.]+)\s*([KkMm])?\s*budget',
+        r'budget[^€$£]*?([\d,.]+)\s*([KkMm])?\s*(?:EUR|USD|euros?|dollars?)',
+        r'[€$£]\s*([\d,.]+)\s*([KkMm])?(?:\s|,|\.|\b)',
+    ]
+    for pattern in patterns:
+        m = re.search(pattern, question, re.IGNORECASE)
+        if m:
+            num_str = m.group(1).replace(',', '').replace('.', '', m.group(1).count('.') - 1) if '.' in m.group(1) else m.group(1).replace(',', '')
+            try:
+                value = float(num_str)
+                suffix = m.group(2)
+                if suffix and suffix.upper() == 'K':
+                    value *= 1_000
+                elif suffix and suffix.upper() == 'M':
+                    value *= 1_000_000
+                if value > 0:
+                    return value
+            except (ValueError, IndexError):
+                continue
+    return None
+
+
+def _parse_amount(amount_str) -> float:
+    """Parse a currency string like '€50,000' or '$120K' into a float. Accepts int/float directly."""
+    if isinstance(amount_str, (int, float)):
+        return float(amount_str)
+    if not isinstance(amount_str, str):
+        return 0.0
+    cleaned = re.sub(r'[€$£\s]', '', amount_str)
+    m = re.match(r'([\d,.]+)\s*([KkMm])?', cleaned)
+    if not m:
+        return 0.0
+    num_str = m.group(1).replace(',', '')
+    try:
+        val = float(num_str)
+    except ValueError:
+        return 0.0
+    suffix = m.group(2)
+    if suffix and suffix.upper() == 'K':
+        val *= 1_000
+    elif suffix and suffix.upper() == 'M':
+        val *= 1_000_000
+    return val
+
+
+def _validate_budget(question: str, financial_data: dict) -> dict | None:
+    """Compare FA cost estimates against the stated budget. Returns warning or None."""
+    budget = _extract_budget(question)
+    if not budget:
+        return None
+
+    fa = financial_data.get('financial_analysis', financial_data)
+    costs = fa.get('cost_estimates', [])
+    if not costs:
+        return None
+
+    total = sum(_parse_amount(c.get('amount', '0')) for c in costs)
+    if total <= 0:
+        return None
+
+    if total > budget:
+        return {
+            "budget_exceeded": True,
+            "stated_budget": budget,
+            "estimated_total_cost": round(total, 2),
+            "overrun": round(total - budget, 2),
+            "overrun_pct": round((total - budget) / budget * 100, 1),
+            "warning": (
+                f"Total estimated costs (€{total:,.0f}) exceed the stated "
+                f"budget (€{budget:,.0f}) by €{total - budget:,.0f} "
+                f"({round((total - budget) / budget * 100, 1)}% over budget)"
+            ),
+        }
+    else:
+        return {
+            "budget_exceeded": False,
+            "stated_budget": budget,
+            "estimated_total_cost": round(total, 2),
+            "remaining": round(budget - total, 2),
+            "info": (
+                f"Total estimated costs (€{total:,.0f}) are within the "
+                f"stated budget (€{budget:,.0f}). "
+                f"€{budget - total:,.0f} remaining."
+            ),
+        }
 
 
 def _sse(data: dict) -> str:
@@ -96,6 +233,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
         {"name": fa.name, "display_name": fa.display_name, "model": fa.model},
         {"name": ra.name, "display_name": ra.display_name, "model": ra.model},
         {"name": sc.name, "display_name": sc.display_name, "model": sc.model},
+        {"name": "evaluator", "display_name": "Evaluator", "model": "kimi-k2.5"},
     ]
 
     state.reset_state(session_id, question, agent_configs)
@@ -103,125 +241,8 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     # Track revisions for the dashboard
     revisions: dict[str, dict] = {}
 
-    # ------------------------------------------------------------------
-    # Helper: run an agent step with EM review + optional revision
-    # ------------------------------------------------------------------
-    def _agent_step_with_review(
-        agent,
-        run_fn,
-        extra_review_context: str = "",
-    ):
-        """Run an agent, have EM review, revise if needed. Returns the output."""
-        state.update_agent(agent.name, "working")
-        yield _sse({
-            "type": "agent_start",
-            "agent": agent.name,
-            "display_name": agent.display_name,
-            "model": agent.model,
-        })
-        monitor.log_event(
-            session_id, "agent_start",
-            agent_name=agent.display_name,
-            data={"model": agent.model},
-        )
-
-        # First run
-        t0 = time.time()
-        output = _run_with_retries(run_fn)
-        elapsed = round(time.time() - t0, 2)
-
-        state.update_agent(agent.name, "done", elapsed=elapsed, output=output)
-        monitor.log_event(
-            session_id, "agent_complete",
-            agent_name=agent.display_name,
-            data={"elapsed": elapsed},
-        )
-        yield _sse({
-            "type": "agent_output",
-            "agent": agent.name,
-            "output": output,
-            "elapsed": elapsed,
-        })
-
-        # EM Review
-        yield _sse({
-            "type": "review_start",
-            "agent": agent.name,
-            "reviewer": em.display_name,
-        })
-        state.update_agent(agent.name, "reviewing")
-        monitor.log_event(
-            session_id, "review_start",
-            agent_name=agent.display_name,
-            data={"reviewer": em.display_name},
-        )
-
-        review = em.review_output(
-            agent_name=agent.display_name,
-            question=question,
-            analysis_plan=plan_data,
-            agent_output=output,
-            extra_context=extra_review_context,
-        )
-
-        yield _sse({
-            "type": "review_result",
-            "agent": agent.name,
-            "approved": review.get("approved", False),
-            "feedback": review.get("feedback", ""),
-        })
-        monitor.log_event(
-            session_id, "review_result",
-            agent_name=agent.display_name,
-            data={"approved": review.get("approved"), "feedback": review.get("feedback", "")},
-        )
-
-        revisions[agent.name] = {
-            "was_revised": False,
-            "feedback": review.get("feedback", ""),
-            "revision_count": 0,
-        }
-
-        # Revision if not approved
-        if not review.get("approved", True) and review.get("feedback"):
-            revisions[agent.name]["was_revised"] = True
-            revisions[agent.name]["revision_count"] = 1
-
-            yield _sse({
-                "type": "revision_start",
-                "agent": agent.name,
-                "feedback": review["feedback"],
-            })
-            state.update_agent(agent.name, "revising")
-            monitor.log_event(
-                session_id, "revision_start",
-                agent_name=agent.display_name,
-                data={"feedback": review["feedback"]},
-            )
-
-            t0 = time.time()
-            output = _run_with_retries(run_fn, revision_feedback=review["feedback"])
-            elapsed_rev = round(time.time() - t0, 2)
-
-            state.update_agent(agent.name, "done", elapsed=elapsed + elapsed_rev, output=output)
-            monitor.log_event(
-                session_id, "revision_complete",
-                agent_name=agent.display_name,
-                data={"elapsed": elapsed_rev, "total_elapsed": elapsed + elapsed_rev},
-            )
-            yield _sse({
-                "type": "agent_output",
-                "agent": agent.name,
-                "output": output,
-                "elapsed": elapsed + elapsed_rev,
-                "revised": True,
-            })
-
-        state.update_agent(agent.name, "approved")
-        return output
-
-    # We need to use a different pattern since generators can't return values.
-    # Use a mutable container to capture the output.
+    # We use a mutable container to capture output from generators,
+    # since generators can't return values via `yield from`.
     class OutputCapture:
         value = None
 
@@ -429,6 +450,19 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
         yield _sse({"type": "error", "agent": fa.name, "error": str(exc)})
         return
 
+    # -- Budget validation (Python-level, not LLM-dependent) --
+    budget_check = _validate_budget(question, financial_data)
+    if budget_check:
+        # Inject into financial data so downstream agents (RA, SC) see it
+        fa_inner = financial_data.get('financial_analysis', financial_data)
+        fa_inner['budget_validation'] = budget_check
+        yield _sse({"type": "budget_validation", **budget_check})
+        monitor.log_event(
+            session_id, "budget_validation",
+            agent_name=fa.display_name,
+            data=budget_check,
+        )
+
     # ------------------------------------------------------------------
     # Phase 4: Risk Analyst -- identify and assess risks (with EM review)
     # ------------------------------------------------------------------
@@ -559,52 +593,132 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     yield _sse({"type": "agent_complete", "agent": sc.name, "elapsed": elapsed})
 
     # ------------------------------------------------------------------
-    # Phase 6: External Evaluator (Kimi K2.5, standalone service)
+    # Phase 6: Evaluator (Kimi K2.5) -- score, optionally trigger SC revision
     # ------------------------------------------------------------------
-    yield _sse({"type": "evaluation_start"})
-    monitor.log_event(session_id, "evaluator_request", data={"url": EVALUATOR_URL})
-
-    try:
-        t0 = time.time()
-        resp = requests.post(
-            f"{EVALUATOR_URL}/evaluate",
-            json={
-                "question": question,
-                "report": full_report,
-                "session_id": session_id,
-                "level": 4,
-            },
-            timeout=EVALUATOR_TIMEOUT,
+    scorecard_final: dict | None = None
+    total_eval_elapsed = 0.0
+    for round_idx in range(MAX_EVAL_ITERATIONS):
+        round_num = round_idx + 1
+        state.update_agent("evaluator", "working")
+        yield _sse({
+            "type": "evaluator_start",
+            "agent": "evaluator",
+            "display_name": "Evaluator (Kimi K2.5)",
+            "round": round_num,
+        })
+        monitor.log_event(
+            session_id, "evaluator_start",
+            agent_name="Evaluator",
+            data={"round": round_num, "model": "kimi-k2.5"},
         )
-        resp.raise_for_status()
-        eval_payload = resp.json()
-        eval_elapsed = round(time.time() - t0, 2)
 
+        t0 = time.time()
+        try:
+            scorecard = _call_evaluator(question, full_report, session_id)
+        except Exception as exc:
+            state.update_agent("evaluator", "error", error=str(exc))
+            monitor.log_event(
+                session_id, "evaluator_error",
+                agent_name="Evaluator",
+                data={"error": str(exc), "round": round_num},
+            )
+            yield _sse({"type": "evaluator_error", "error": str(exc), "round": round_num})
+            break
+
+        eval_elapsed = round(time.time() - t0, 2)
+        total_eval_elapsed += eval_elapsed
+        scorecard_final = scorecard
+
+        state.update_agent(
+            "evaluator", "done",
+            elapsed=round(total_eval_elapsed, 2),
+            output=scorecard,
+        )
+        state.set_scorecard(scorecard, round_num)
+
+        yield _sse({
+            "type": "evaluator_complete",
+            "agent": "evaluator",
+            "scorecard": scorecard,
+            "elapsed": eval_elapsed,
+            "round": round_num,
+        })
         monitor.log_event(
             session_id, "evaluator_complete",
+            agent_name="Evaluator",
             data={
-                "overall_score": eval_payload.get("scorecard", {}).get("overall_score"),
                 "elapsed": eval_elapsed,
+                "overall_score": scorecard.get("overall_score"),
+                "round": round_num,
             },
         )
+
+        failing = _failing_criteria(scorecard)
+        if not failing or round_num >= MAX_EVAL_ITERATIONS:
+            break
+
+        feedback = _build_evaluator_feedback(scorecard, failing)
+        revisions[sc.name] = {
+            "was_revised": True,
+            "feedback": feedback,
+            "revision_count": revisions.get(sc.name, {}).get("revision_count", 0) + 1,
+            "source": "evaluator",
+        }
+
         yield _sse({
-            "type": "evaluation",
-            "scorecard": eval_payload.get("scorecard"),
-            "model": eval_payload.get("model"),
-            "elapsed": eval_elapsed,
+            "type": "revision_start",
+            "agent": sc.name,
+            "feedback": feedback,
+            "source": "evaluator",
+            "round": round_num,
         })
-    except requests.RequestException as exc:
-        # Evaluator is optional -- log + emit a soft error, don't fail the pipeline.
-        monitor.log_event(session_id, "evaluator_error", data={"error": str(exc)})
-        yield _sse({"type": "evaluation_error", "error": str(exc)})
+        state.update_agent(sc.name, "revising")
+        monitor.log_event(
+            session_id, "revision_start",
+            agent_name=sc.display_name,
+            data={"feedback": feedback, "source": "evaluator", "round": round_num},
+        )
+
+        report_chunks = []
+        try:
+            t0_rev = time.time()
+            for token in sc.run(
+                question, plan_data, research_data, financial_data, risk_data,
+                revision_feedback=feedback,
+            ):
+                report_chunks.append(token)
+                yield _sse({"type": "token", "content": token})
+            elapsed_rev = round(time.time() - t0_rev, 2)
+            elapsed += elapsed_rev
+        except Exception as exc:
+            state.update_agent(sc.name, "error", error=str(exc))
+            monitor.log_event(
+                session_id, "agent_error",
+                agent_name=sc.display_name,
+                data={"error": str(exc), "source": "evaluator_revision"},
+            )
+            yield _sse({"type": "error", "agent": sc.name, "error": str(exc)})
+            break
+
+        full_report = strip_think_tags("".join(report_chunks))
+        state.update_agent(sc.name, "approved", elapsed=elapsed)
+        monitor.log_event(
+            session_id, "revision_complete",
+            agent_name=sc.display_name,
+            data={"elapsed": elapsed_rev, "source": "evaluator", "round": round_num},
+        )
 
     # ------------------------------------------------------------------
     # Pipeline complete
     # ------------------------------------------------------------------
     state.finish_pipeline(revisions)
-    monitor.log_event(session_id, "session_complete", data={"revisions": revisions})
+    monitor.log_event(
+        session_id, "session_complete",
+        data={"revisions": revisions, "final_scorecard": scorecard_final},
+    )
     yield _sse({
         "type": "done",
         "session_id": session_id,
         "revisions": revisions,
+        "scorecard": scorecard_final,
     })

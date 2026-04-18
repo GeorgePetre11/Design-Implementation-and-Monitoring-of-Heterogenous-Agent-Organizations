@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,24 +7,40 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root[data-theme="dark"] {
+      --bg: #0f1117; --bg-card: #1e293b; --bg-input: #0f1117;
+      --border: #334155; --text: #e2e8f0; --text-heading: #f8fafc;
+      --text-muted: #94a3b8; --text-dim: #64748b; --text-dimmer: #475569;
+      --accent: #7dd3fc; --accent-hover: #38bdf8; --btn-bg: #0ea5e9;
+      --btn-disabled-bg: #334155; --btn-disabled-color: #64748b;
+      --badge-bg: #1e293b; --tag-bg: #1e293b; --risk-card-bg: #1e293b;
+      --report-h3: #7dd3fc; --report-em: #94a3b8;
+    }
+    :root[data-theme="light"] {
+      --bg: #f8fafc; --bg-card: #ffffff; --bg-input: #f1f5f9;
+      --border: #e2e8f0; --text: #1e293b; --text-heading: #0f172a;
+      --text-muted: #64748b; --text-dim: #94a3b8; --text-dimmer: #cbd5e1;
+      --accent: #0284c7; --accent-hover: #0369a1; --btn-bg: #0ea5e9;
+      --btn-disabled-bg: #e2e8f0; --btn-disabled-color: #94a3b8;
+      --badge-bg: #f1f5f9; --tag-bg: #f1f5f9; --risk-card-bg: #f8fafc;
+      --report-h3: #0284c7; --report-em: #64748b;
+    }
+
     body {
       font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem 1rem;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; padding: 2rem 1rem;
+      transition: background 0.3s, color 0.3s;
     }
 
     header { text-align: center; margin-bottom: 1.5rem; }
-    header h1 { font-size: 1.75rem; font-weight: 700; color: #f8fafc; }
-    header p  { margin-top: 0.4rem; font-size: 0.9rem; color: #94a3b8; }
+    header h1 { font-size: 1.75rem; font-weight: 700; color: var(--text-heading); }
+    header p  { margin-top: 0.4rem; font-size: 0.9rem; color: var(--text-muted); }
     .badges { display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem; flex-wrap: wrap; }
     .badge {
-      display: inline-block; background: #1e293b; border: 1px solid #334155;
-      color: #7dd3fc; font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px;
+      display: inline-block; background: var(--badge-bg); border: 1px solid var(--border);
+      color: var(--accent); font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px;
     }
     .badge.hybrid { color: #fbbf24; border-color: #92400e; }
     .badge.dashboard-link {
@@ -32,30 +48,38 @@
     }
     .badge.dashboard-link:hover { background: #4c1d95; color: #e9d5ff; }
 
+    /* Theme toggle */
+    .theme-toggle {
+      background: var(--badge-bg); border: 1px solid var(--border); color: var(--text-muted);
+      padding: 0.2rem 0.6rem; border-radius: 999px; font-size: 0.75rem;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--accent); background: var(--badge-bg); }
+
     .card {
-      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
       padding: 1.5rem; width: 100%; max-width: 900px;
     }
 
     textarea {
-      width: 100%; height: 90px; background: #0f1117; border: 1px solid #334155;
-      border-radius: 8px; color: #e2e8f0; font-size: 0.95rem; padding: 0.75rem 1rem;
+      width: 100%; height: 90px; background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.95rem; padding: 0.75rem 1rem;
       resize: vertical; outline: none; transition: border-color 0.2s;
     }
-    textarea:focus { border-color: #7dd3fc; }
-    textarea::placeholder { color: #475569; }
+    textarea:focus { border-color: var(--accent); }
+    textarea::placeholder { color: var(--text-dimmer); }
 
     .row { display: flex; gap: 0.75rem; margin-top: 0.75rem; align-items: center; }
 
     button {
-      background: #0ea5e9; color: #fff; border: none; border-radius: 8px;
+      background: var(--btn-bg); color: #fff; border: none; border-radius: 8px;
       padding: 0.6rem 1.4rem; font-size: 0.9rem; font-weight: 600;
       cursor: pointer; transition: background 0.2s; white-space: nowrap;
     }
-    button:hover:not(:disabled) { background: #38bdf8; }
-    button:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    button:hover:not(:disabled) { background: var(--accent-hover); }
+    button:disabled { background: var(--btn-disabled-bg); color: var(--btn-disabled-color); cursor: not-allowed; }
 
-    #status { font-size: 0.82rem; color: #64748b; }
+    #status { font-size: 0.82rem; color: var(--text-dim); }
     #status.running { color: #7dd3fc; }
     #status.reviewing { color: #fbbf24; }
     #status.revising { color: #f97316; }
@@ -66,24 +90,24 @@
       display: flex; gap: 1rem; margin: 1rem auto 0; width: 100%; max-width: 900px; flex-wrap: wrap;
     }
     .metric {
-      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
-      padding: 0.35rem 0.8rem; font-size: 0.78rem; color: #94a3b8;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0.35rem 0.8rem; font-size: 0.78rem; color: var(--text-muted);
     }
-    .metric span { color: #f8fafc; font-weight: 600; margin-left: 0.3rem; }
+    .metric span { color: var(--text-heading); font-weight: 600; margin-left: 0.3rem; }
 
     /* -- Collapsible agent output -- */
     .agent-output-section { width: 100%; max-width: 900px; margin-top: 1rem; display: none; }
     .agent-output-header {
       display: flex; align-items: center; justify-content: space-between;
-      background: #1e293b; border: 1px solid #334155; border-radius: 10px 10px 0 0;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px 10px 0 0;
       padding: 0.6rem 1rem; cursor: pointer; user-select: none; transition: background 0.2s;
     }
-    .agent-output-header:hover { background: #253349; }
-    .agent-output-header h3 { font-size: 0.85rem; font-weight: 600; color: #f8fafc; }
-    .agent-output-header .toggle { font-size: 0.75rem; color: #64748b; transition: transform 0.3s; }
+    .agent-output-header:hover { opacity: 0.9; }
+    .agent-output-header h3 { font-size: 0.85rem; font-weight: 600; color: var(--text-heading); }
+    .agent-output-header .toggle { font-size: 0.75rem; color: var(--text-dim); transition: transform 0.3s; }
     .agent-output-header .toggle.open { transform: rotate(180deg); }
     .agent-output-header .elapsed-badge {
-      font-size: 0.7rem; color: #94a3b8; background: #0f1117;
+      font-size: 0.7rem; color: var(--text-muted); background: var(--bg);
       padding: 0.15rem 0.5rem; border-radius: 999px; margin-left: auto; margin-right: 0.6rem;
     }
     .review-badge {
@@ -93,18 +117,18 @@
     .review-badge.approved { background: #14532d; color: #4ade80; }
     .review-badge.revised  { background: #7c2d12; color: #fdba74; }
     .agent-output-content {
-      background: #0f1117; border: 1px solid #334155; border-top: none;
+      background: var(--bg); border: 1px solid var(--border); border-top: none;
       border-radius: 0 0 10px 10px; padding: 1rem 1.2rem; font-size: 0.82rem;
-      line-height: 1.6; color: #cbd5e1; max-height: 400px; overflow-y: auto; display: none;
+      line-height: 1.6; color: var(--text); max-height: 400px; overflow-y: auto; display: none;
     }
     .agent-output-content.open { display: block; }
-    .agent-output-content h4 { font-size: 0.8rem; color: #7dd3fc; margin: 0.8rem 0 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .agent-output-content h4 { font-size: 0.8rem; color: var(--accent); margin: 0.8rem 0 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
     .agent-output-content h4:first-child { margin-top: 0; }
     .agent-output-content ul { padding-left: 1.2rem; margin: 0.3rem 0; }
     .agent-output-content li { margin-bottom: 0.2rem; }
     .agent-output-content .tag {
-      display: inline-block; background: #1e293b; border: 1px solid #334155;
-      padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; color: #94a3b8; margin-right: 0.3rem;
+      display: inline-block; background: var(--tag-bg); border: 1px solid var(--border);
+      padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.72rem; color: var(--text-muted); margin-right: 0.3rem;
     }
 
     /* -- Risk colors -- */
@@ -113,83 +137,50 @@
     .risk-low { color: #4ade80; }
     .risk-critical { color: #ef4444; font-weight: 700; }
 
+    /* -- Evaluation -- */
+    #eval-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
+    #eval-section h2 { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.7rem; }
+    #eval-round-badge { font-size: 0.7rem; font-weight: 600; color: var(--text-muted); margin-left: 0.6rem; }
+    .eval-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+    .eval-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 0.7rem 1rem; }
+    .eval-card .criterion-name { font-size: 0.78rem; font-weight: 600; color: var(--text); text-transform: capitalize; margin-bottom: 0.35rem; }
+    .eval-card .score-bar-bg { background: var(--bg-deep, #0f1117); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 0.3rem; }
+    .eval-card .score-bar { height: 100%; border-radius: 4px; transition: width 0.8s ease; }
+    .eval-card .score-value { font-size: 0.85rem; font-weight: 700; float: right; margin-top: -1.4rem; }
+    .eval-card .justification { font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
+    .eval-card.failing { border-color: #ef4444; }
+    .eval-overall { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; margin-top: 0.6rem; text-align: center; display: none; }
+    .eval-overall .overall-label { font-size: 0.8rem; color: var(--text-muted); }
+    .eval-overall .overall-score { font-size: 2rem; font-weight: 800; margin: 0.3rem 0; }
+    .eval-overall .overall-summary { font-size: 0.82rem; color: var(--text); line-height: 1.5; max-width: 600px; margin: 0 auto; }
+    .eval-issues { background: var(--bg-card); border: 1px solid #ef4444; border-radius: 10px; padding: 0.8rem 1rem; margin-top: 0.6rem; display: none; }
+    .eval-issues h3 { font-size: 0.78rem; color: #ef4444; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; }
+    .eval-issues ul { padding-left: 1.1rem; }
+    .eval-issues li { font-size: 0.78rem; color: var(--text); margin-bottom: 0.2rem; }
+    @media (max-width: 700px) { .eval-grid { grid-template-columns: 1fr; } }
+
     /* -- Report -- */
     #report-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
     .toolbar { display: flex; align-items: center; margin-bottom: 0.5rem; }
-    .toolbar h2 { font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
+    .toolbar h2 { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
     .copy-btn {
-      background: #1e293b; border: 1px solid #334155; color: #94a3b8;
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
       padding: 0.3rem 0.7rem; font-size: 0.75rem; border-radius: 6px; cursor: pointer; margin-left: 0.5rem;
     }
-    .copy-btn:hover { border-color: #7dd3fc; color: #7dd3fc; background: #1e293b; }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
 
     #report-output {
-      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
       padding: 1.5rem 2rem; white-space: pre-wrap; font-family: 'Segoe UI', system-ui, sans-serif;
-      font-size: 0.88rem; line-height: 1.7; color: #e2e8f0; min-height: 200px; max-height: 60vh; overflow-y: auto;
+      font-size: 0.88rem; line-height: 1.7; color: var(--text); min-height: 200px; max-height: 60vh; overflow-y: auto;
     }
-    #report-output h1, #report-output h2, #report-output h3 { color: #f8fafc; margin: 1rem 0 0.4rem; font-weight: 700; }
-    #report-output h1 { font-size: 1.25rem; border-bottom: 1px solid #334155; padding-bottom: 0.3rem; }
+    #report-output h1, #report-output h2, #report-output h3 { color: var(--text-heading); margin: 1rem 0 0.4rem; font-weight: 700; }
+    #report-output h1 { font-size: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3rem; }
     #report-output h2 { font-size: 1.05rem; }
-    #report-output h3 { font-size: 0.92rem; color: #7dd3fc; }
-    #report-output strong { color: #f8fafc; }
-    #report-output em { color: #94a3b8; }
-    #report-output hr { border: none; border-top: 1px solid #334155; margin: 1rem 0; }
-
-    /* -- Evaluator scorecard (Kimi K2.5 external judge) -- */
-    #evaluation-section { width: 100%; max-width: 900px; margin-top: 1.2rem; display: none; }
-    .eval-header {
-      display: flex; align-items: center; gap: 0.6rem;
-      background: #1e293b; border: 1px solid #334155; border-radius: 10px 10px 0 0;
-      padding: 0.7rem 1rem;
-    }
-    .eval-header h2 { font-size: 0.85rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em; }
-    .eval-header .eval-badge {
-      font-size: 0.7rem; color: #c4b5fd; background: #2e1065; border: 1px solid #4c1d95;
-      padding: 0.15rem 0.55rem; border-radius: 999px;
-    }
-    .eval-body {
-      background: #0f1117; border: 1px solid #334155; border-top: none;
-      border-radius: 0 0 10px 10px; padding: 1.2rem 1.4rem;
-    }
-    .eval-overall {
-      display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.8rem;
-    }
-    .eval-overall .score { font-size: 2rem; font-weight: 700; color: #4ade80; }
-    .eval-overall .score.low { color: #f87171; }
-    .eval-overall .score.mid { color: #fbbf24; }
-    .eval-overall .label { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
-    .eval-summary { font-size: 0.85rem; color: #cbd5e1; font-style: italic; margin-bottom: 1rem; line-height: 1.6; }
-    .eval-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 0.7rem; margin-bottom: 1rem;
-    }
-    .eval-criterion {
-      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
-      padding: 0.7rem 0.9rem;
-    }
-    .eval-criterion-head {
-      display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.3rem;
-    }
-    .eval-criterion-name { font-size: 0.78rem; font-weight: 600; color: #7dd3fc; text-transform: capitalize; }
-    .eval-criterion-score { font-size: 0.95rem; font-weight: 700; color: #4ade80; }
-    .eval-criterion-score.low { color: #f87171; }
-    .eval-criterion-score.mid { color: #fbbf24; }
-    .eval-criterion-bar { height: 4px; background: #0f1117; border-radius: 2px; overflow: hidden; margin-bottom: 0.4rem; }
-    .eval-criterion-bar-fill { height: 100%; background: #4ade80; transition: width 0.5s; }
-    .eval-criterion-bar-fill.low { background: #f87171; }
-    .eval-criterion-bar-fill.mid { background: #fbbf24; }
-    .eval-criterion-just { font-size: 0.74rem; color: #94a3b8; line-height: 1.5; }
-    .eval-dims { display: flex; gap: 1rem; font-size: 0.75rem; color: #94a3b8; margin-bottom: 0.8rem; }
-    .eval-dims strong { color: #e2e8f0; }
-    .eval-issues { margin-top: 0.6rem; }
-    .eval-issues h4 { font-size: 0.72rem; color: #f87171; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
-    .eval-issues ul { padding-left: 1.2rem; }
-    .eval-issues li { font-size: 0.76rem; color: #cbd5e1; margin-bottom: 0.25rem; line-height: 1.5; }
-    .eval-pending, .eval-error {
-      font-size: 0.82rem; color: #94a3b8; padding: 1rem; text-align: center;
-    }
-    .eval-error { color: #f87171; }
+    #report-output h3 { font-size: 0.92rem; color: var(--report-h3); }
+    #report-output strong { color: var(--text-heading); }
+    #report-output em { color: var(--report-em); }
+    #report-output hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
 
     @media (max-width: 700px) { body { padding: 1rem 0.5rem; } }
   </style>
@@ -203,6 +194,7 @@
     <span class="badge">Level 4 · Five Agents · Hybrid Hierarchical</span>
     <span class="badge hybrid">EM Review + Revision Loops</span>
     <a class="badge dashboard-link" href="/dashboard.html" target="_blank">Monitoring Dashboard</a>
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">Light Mode</button>
   </div>
 </header>
 
@@ -273,14 +265,11 @@
   <div id="report-output"></div>
 </div>
 
-<div id="evaluation-section">
-  <div class="eval-header">
-    <h2>External Quality Evaluation</h2>
-    <span class="eval-badge" id="eval-model-badge">Kimi K2.5</span>
-  </div>
-  <div class="eval-body" id="eval-body">
-    <div class="eval-pending">Waiting for external evaluator…</div>
-  </div>
+<div id="eval-section">
+  <h2>Evaluation Scorecard (Kimi K2.5) <span id="eval-round-badge"></span></h2>
+  <div class="eval-grid" id="eval-grid"></div>
+  <div class="eval-overall" id="eval-overall"></div>
+  <div class="eval-issues" id="eval-issues"><h3>Critical Issues</h3><ul id="eval-issues-list"></ul></div>
 </div>
 
 <script>
@@ -291,6 +280,25 @@ let revisionCount = 0;
 let startTime = null;
 let timerInterval = null;
 let isRevision = false;
+
+/* -- Theme toggle -- */
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute("data-theme");
+  const next = current === "dark" ? "light" : "dark";
+  html.setAttribute("data-theme", next);
+  document.getElementById("theme-btn").textContent = next === "dark" ? "Light Mode" : "Dark Mode";
+  localStorage.setItem("theme", next);
+}
+(function initTheme() {
+  const saved = localStorage.getItem("theme");
+  if (saved) {
+    document.documentElement.setAttribute("data-theme", saved);
+    document.addEventListener("DOMContentLoaded", () => {
+      document.getElementById("theme-btn").textContent = saved === "dark" ? "Light Mode" : "Dark Mode";
+    });
+  }
+})();
 
 function setStatus(text, cls) {
   const el = document.getElementById("status");
@@ -326,73 +334,6 @@ function riskColor(level) {
   return "#4ade80";
 }
 
-function escapeHtml(s) {
-  return String(s ?? "").replace(/[&<>"']/g, c => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-  }[c]));
-}
-
-function scoreClass(score) {
-  if (score >= 7) return "";       // green (default)
-  if (score >= 4) return "mid";    // amber
-  return "low";                    // red
-}
-
-function renderScorecard(sc, model, elapsed) {
-  if (!sc) {
-    document.getElementById("eval-body").innerHTML =
-      '<div class="eval-error">Evaluator returned no scorecard.</div>';
-    return;
-  }
-  if (model) document.getElementById("eval-model-badge").textContent = model;
-
-  const overall = Number(sc.overall_score ?? 0);
-  const cls = scoreClass(overall);
-  const criteria = sc.evaluation || {};
-  const order = ["completeness", "accuracy", "coherence", "structure", "actionability", "critical_depth"];
-
-  let grid = "";
-  for (const key of order) {
-    const c = criteria[key];
-    if (!c) continue;
-    const s = Number(c.score ?? 0);
-    const sCls = scoreClass(s);
-    const pct = Math.max(0, Math.min(100, (s / 10) * 100));
-    grid += `
-      <div class="eval-criterion">
-        <div class="eval-criterion-head">
-          <span class="eval-criterion-name">${key.replace(/_/g, " ")}</span>
-          <span class="eval-criterion-score ${sCls}">${s}/10</span>
-        </div>
-        <div class="eval-criterion-bar"><div class="eval-criterion-bar-fill ${sCls}" style="width:${pct}%"></div></div>
-        <div class="eval-criterion-just">${escapeHtml(c.justification || "")}</div>
-      </div>`;
-  }
-
-  let issuesHtml = "";
-  if (Array.isArray(sc.critical_issues) && sc.critical_issues.length) {
-    issuesHtml = '<div class="eval-issues"><h4>Critical Issues</h4><ul>' +
-      sc.critical_issues.map(i => `<li>${escapeHtml(i)}</li>`).join("") +
-      '</ul></div>';
-  }
-
-  const elapsedStr = elapsed != null ? ` · ${elapsed}s` : "";
-
-  document.getElementById("eval-body").innerHTML = `
-    <div class="eval-overall">
-      <span class="score ${cls}">${overall.toFixed(1)}</span>
-      <span class="label">Overall Score / 10${elapsedStr}</span>
-    </div>
-    <div class="eval-summary">${escapeHtml(sc.summary || "")}</div>
-    <div class="eval-dims">
-      <div>Strongest: <strong>${escapeHtml((sc.strongest_dimension || "").replace(/_/g, " "))}</strong></div>
-      <div>Weakest: <strong>${escapeHtml((sc.weakest_dimension || "").replace(/_/g, " "))}</strong></div>
-    </div>
-    <div class="eval-grid">${grid}</div>
-    ${issuesHtml}
-  `;
-}
-
 function renderAnalysisPlan(data) {
   const plan = data.analysis_plan || data;
   let h = "";
@@ -400,7 +341,7 @@ function renderAnalysisPlan(data) {
   const ws = plan.workstreams || [];
   h += `<h4>Workstreams (${ws.length})</h4>`;
   for (const w of ws) {
-    h += `<div style="margin-bottom:0.6rem"><strong>${w.id}. ${w.title}</strong><br><span style="color:#94a3b8">${w.description}</span>`;
+    h += `<div style="margin-bottom:0.6rem"><strong>${w.id}. ${w.title}</strong><br><span style="color:var(--text-muted)">${w.description}</span>`;
     if (w.key_questions?.length) { h += `<ul>`; for (const q of w.key_questions) h += `<li>${q}</li>`; h += `</ul>`; }
     h += `</div>`;
   }
@@ -414,8 +355,8 @@ function renderMarketResearch(data) {
   if (ma.market_size_and_growth) h += `<h4>Market Size &amp; Growth</h4><p>${ma.market_size_and_growth}</p>`;
   for (const c of (ma.key_competitors || [])) {
     h += `<div style="margin-bottom:0.4rem"><strong>${c.name}</strong> <span class="tag">${c.market_position}</span>`;
-    if (c.source) h += ` <span class="tag" style="color:#7dd3fc">${c.source}</span>`;
-    h += `<br><span style="color:#94a3b8">${c.description}</span></div>`;
+    if (c.source) h += ` <span class="tag" style="color:var(--accent)">${c.source}</span>`;
+    h += `<br><span style="color:var(--text-muted)">${c.description}</span></div>`;
   }
   if (ma.market_trends?.length) { h += `<h4>Trends</h4><ul>`; for (const t of ma.market_trends) h += `<li>${t}</li>`; h += `</ul>`; }
   for (const s of (ma.customer_segments || [])) {
@@ -424,7 +365,7 @@ function renderMarketResearch(data) {
     h += `</div>`;
   }
   if (ma.key_findings?.length) { h += `<h4>Key Findings</h4><ul>`; for (const f of ma.key_findings) h += `<li>${f}</li>`; h += `</ul>`; }
-  if (ma.sources?.length) { h += `<h4>Sources (${ma.sources.length})</h4><ul>`; for (const u of ma.sources) h += `<li><a href="${u}" target="_blank" style="color:#7dd3fc">${u}</a></li>`; h += `</ul>`; }
+  if (ma.sources?.length) { h += `<h4>Sources (${ma.sources.length})</h4><ul>`; for (const u of ma.sources) h += `<li><a href="${u}" target="_blank" style="color:var(--accent)">${u}</a></li>`; h += `</ul>`; }
   return h;
 }
 
@@ -436,15 +377,21 @@ function renderFinancialAnalysis(data) {
   if (fa.cost_estimates?.length) {
     h += `<h4>Cost Estimates</h4>`;
     for (const c of fa.cost_estimates) {
-      h += `<div style="margin-bottom:0.4rem"><strong>${c.category}</strong> <span class="tag">${c.amount}</span> <span class="tag">${c.timeframe}</span><br><span style="color:#94a3b8">${c.notes}</span></div>`;
+      h += `<div style="margin-bottom:0.4rem"><strong>${c.category}</strong> <span class="tag">${c.amount}</span> <span class="tag">${c.timeframe}</span><br><span style="color:var(--text-muted)">${c.notes}</span></div>`;
     }
+  }
+  if (fa.budget_validation) {
+    const bv = fa.budget_validation;
+    const color = bv.budget_exceeded ? "#f87171" : "#4ade80";
+    const text = bv.warning || bv.info || "";
+    h += `<h4>Budget Validation</h4><div style="padding:0.6rem;border-radius:6px;border:1px solid ${color};background:${bv.budget_exceeded ? 'rgba(248,113,113,0.1)' : 'rgba(74,222,128,0.1)'}"><span style="color:${color};font-weight:600">${bv.budget_exceeded ? 'BUDGET EXCEEDED' : 'WITHIN BUDGET'}</span><br><span style="color:var(--text-muted)">${text}</span></div>`;
   }
   if (fa.revenue_projections?.length) {
     h += `<h4>Revenue Projections</h4>`;
     for (const r of fa.revenue_projections) {
       h += `<div style="margin-bottom:0.4rem"><strong>${r.scenario}</strong><br>`;
       h += `Y1: <span class="tag">${r.year_1}</span> Y2: <span class="tag">${r.year_2}</span> Y3: <span class="tag">${r.year_3}</span><br>`;
-      h += `<span style="color:#94a3b8">${r.assumptions}</span></div>`;
+      h += `<span style="color:var(--text-muted)">${r.assumptions}</span></div>`;
     }
   }
   if (fa.roi_analysis) h += `<h4>ROI Analysis</h4><p>${fa.roi_analysis}</p>`;
@@ -466,12 +413,12 @@ function renderRiskAssessment(data) {
     for (const r of ra.risks) {
       const pColor = riskColor(r.probability === "high" ? "high" : r.probability === "medium" ? "medium" : "low");
       const iColor = riskColor(r.impact === "high" ? "high" : r.impact === "medium" ? "medium" : "low");
-      h += `<div style="margin-bottom:0.6rem;padding:0.5rem;background:#1e293b;border-radius:6px">`;
+      h += `<div style="margin-bottom:0.6rem;padding:0.5rem;background:var(--risk-card-bg);border-radius:6px">`;
       h += `<strong>${r.id || ""}. ${r.title}</strong> <span class="tag">${r.category}</span>`;
-      if (r.source) h += ` <span class="tag" style="color:#7dd3fc">${r.source}</span>`;
-      h += `<br><span style="color:#94a3b8">${r.description}</span><br>`;
+      if (r.source) h += ` <span class="tag" style="color:var(--accent)">${r.source}</span>`;
+      h += `<br><span style="color:var(--text-muted)">${r.description}</span><br>`;
       h += `Probability: <span style="color:${pColor}">${r.probability}</span> &middot; Impact: <span style="color:${iColor}">${r.impact}</span><br>`;
-      if (r.mitigation_suggestion) h += `<span style="color:#7dd3fc;font-size:0.75rem">Mitigation: ${r.mitigation_suggestion}</span>`;
+      if (r.mitigation_suggestion) h += `<span style="color:var(--accent);font-size:0.75rem">Mitigation: ${r.mitigation_suggestion}</span>`;
       h += `</div>`;
     }
   }
@@ -479,7 +426,47 @@ function renderRiskAssessment(data) {
   return h;
 }
 
-// Evaluator runs in a separate standalone app powered by Kimi 2.5.
+function scoreColor(v) {
+  if (v >= 8) return "#10b981";
+  if (v >= 6) return "#eab308";
+  if (v >= 4) return "#f97316";
+  return "#ef4444";
+}
+
+function renderEvaluation(scorecard, round) {
+  const evaluation = scorecard.evaluation || {};
+  const criteria = ["completeness","accuracy","coherence","structure","actionability","critical_depth"];
+  const grid = document.getElementById("eval-grid");
+  grid.innerHTML = "";
+  for (const c of criteria) {
+    const item = evaluation[c] || { score: 0, justification: "N/A" };
+    const pct = (item.score / 10) * 100;
+    const color = scoreColor(item.score);
+    const failingCls = item.score < 5 ? " failing" : "";
+    grid.innerHTML += `<div class="eval-card${failingCls}">
+      <div class="criterion-name">${c.replace(/_/g," ")} <span class="score-value" style="color:${color}">${item.score}/10</span></div>
+      <div class="score-bar-bg"><div class="score-bar" style="width:${pct}%;background:${color}"></div></div>
+      <div class="justification">${item.justification || ""}</div>
+    </div>`;
+  }
+  const o = document.getElementById("eval-overall");
+  const overall = scorecard.overall_score ?? 0;
+  o.style.display = "block";
+  o.innerHTML = `<div class="overall-label">Overall Score</div>
+    <div class="overall-score" style="color:${scoreColor(overall)}">${overall}/10</div>
+    <div class="overall-summary">${scorecard.summary || ""}</div>`;
+  const issuesBox = document.getElementById("eval-issues");
+  const issuesList = document.getElementById("eval-issues-list");
+  const issues = scorecard.critical_issues || [];
+  if (issues.length) {
+    issuesList.innerHTML = issues.map(i => `<li>${i}</li>`).join("");
+    issuesBox.style.display = "block";
+  } else {
+    issuesBox.style.display = "none";
+  }
+  if (round) document.getElementById("eval-round-badge").textContent = `Round ${round}`;
+  document.getElementById("eval-section").style.display = "block";
+}
 
 const AGENT_SECTIONS = ["engagement_manager", "market_researcher", "financial_analyst", "risk_analyst"];
 
@@ -499,8 +486,12 @@ async function startAnalysis() {
     document.getElementById("review-" + id).className = "review-badge";
   });
   document.getElementById("report-section").style.display = "none";
-  document.getElementById("evaluation-section").style.display = "none";
-  document.getElementById("eval-body").innerHTML = '<div class="eval-pending">Waiting for external evaluator…</div>';
+  document.getElementById("eval-section").style.display = "none";
+  document.getElementById("eval-grid").innerHTML = "";
+  document.getElementById("eval-overall").style.display = "none";
+  document.getElementById("eval-issues").style.display = "none";
+  document.getElementById("eval-issues-list").innerHTML = "";
+  document.getElementById("eval-round-badge").textContent = "";
   document.getElementById("submit-btn").disabled = true;
   setStatus("Starting hybrid pipeline...", "running");
   startTime = Date.now();
@@ -588,6 +579,11 @@ function handleEvent(msg) {
         }
       }
       break;
+    case "budget_validation":
+      if (msg.budget_exceeded) {
+        setStatus(`Budget exceeded: €${Math.round(msg.estimated_total_cost).toLocaleString()} vs €${Math.round(msg.stated_budget).toLocaleString()} budget`, "error");
+      }
+      break;
     case "review_start":
       setStatus(`EM reviewing ${msg.agent.replace(/_/g, " ")}...`, "reviewing");
       break;
@@ -607,28 +603,27 @@ function handleEvent(msg) {
       if (msg.agent === "strategy_consultant") {
         isRevision = true;
         reportRaw = ""; tokenCount = 0;
-        document.getElementById("report-output").innerHTML = '<p style="color:#f97316;font-size:0.8rem">Rewriting report based on EM feedback...</p>';
+        const label = msg.source === "evaluator"
+          ? "Rewriting report based on Evaluator scorecard..."
+          : "Rewriting report based on EM feedback...";
+        document.getElementById("report-output").innerHTML = `<p style="color:#f97316;font-size:0.8rem">${label}</p>`;
       }
+      break;
+    case "evaluator_start":
+      setStatus(`Evaluator (Kimi K2.5) scoring — round ${msg.round}...`, "running");
+      break;
+    case "evaluator_complete":
+      renderEvaluation(msg.scorecard || {}, msg.round);
+      setStatus(`Evaluator round ${msg.round} complete (${msg.elapsed}s).`, "done");
+      break;
+    case "evaluator_error":
+      setStatus(`Evaluator error: ${msg.error}`, "error");
       break;
     case "token":
       reportRaw += msg.content; tokenCount++;
       document.getElementById("m-tokens").textContent = tokenCount;
       document.getElementById("report-output").innerHTML = renderMarkdown(reportRaw);
       document.getElementById("report-output").scrollTop = document.getElementById("report-output").scrollHeight;
-      break;
-    case "evaluation_start":
-      document.getElementById("evaluation-section").style.display = "block";
-      document.getElementById("eval-body").innerHTML =
-        '<div class="eval-pending">Kimi K2.5 is scoring the report…</div>';
-      setStatus("External evaluator scoring report...", "reviewing");
-      break;
-    case "evaluation":
-      renderScorecard(msg.scorecard, msg.model, msg.elapsed);
-      break;
-    case "evaluation_error":
-      document.getElementById("evaluation-section").style.display = "block";
-      document.getElementById("eval-body").innerHTML =
-        '<div class="eval-error">Evaluator unavailable: ' + escapeHtml(msg.error || "unknown error") + '</div>';
       break;
     case "error":
       setStatus("Error: " + msg.error, "error");

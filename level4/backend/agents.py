@@ -9,21 +9,20 @@ Five specialized agents operating in a hierarchical hybrid structure:
   4. Risk Analyst        — identifies and assesses risks
   5. Strategy Consultant — synthesizes all inputs into a consulting report
 
-(The Evaluator runs in a separate standalone app powered by Kimi 2.5
-and is not part of this backend.)
+Note: The Evaluator is a separate application (not part of this pipeline).
 
 Key differences from Level 3:
   - The EM acts as a Managing Partner: reviews intermediate outputs and can
     send work back with specific revision feedback (max 1 revision per agent).
   - All agents use /think or /no_think mode toggles for Qwen 3.
   - Stricter anti-hallucination prompts with mandatory source tracing.
-  - Financial Analyst switched from DeepSeek R1 to Qwen 3 14B.
+  - Financial Analyst uses GPT-OSS 20B for strong quantitative reasoning.
   - Strategy Consultant upgraded to Qwen 3.5 27B (256K context).
 
-Models (from level4_models.md):
+Models:
   Engagement Manager  -> qwen3:8b          (fast decomposition + review)
   Market Researcher   -> qwen3:14b         (broad knowledge, /no_think synthesis)
-  Financial Analyst   -> qwen3:14b         (/think for math, /no_think for extraction)
+  Financial Analyst   -> gpt-oss:20b       (/think for math, /no_think for extraction)
   Risk Analyst        -> qwen3:14b         (/think for analytical reasoning)
   Strategy Consultant -> qwen3.5:27b       (256K context, superior writing)
 """
@@ -31,6 +30,7 @@ Models (from level4_models.md):
 import json
 import os
 import re
+from datetime import date
 from typing import Generator
 
 import ollama
@@ -43,7 +43,7 @@ from ddgs import DDGS
 # ---------------------------------------------------------------------------
 ENGAGEMENT_MANAGER_MODEL = os.getenv("ENGAGEMENT_MANAGER_MODEL", "qwen3:8b")
 MARKET_RESEARCHER_MODEL = os.getenv("MARKET_RESEARCHER_MODEL", "qwen3:14b")
-FINANCIAL_ANALYST_MODEL = os.getenv("FINANCIAL_ANALYST_MODEL", "qwen3:14b")
+FINANCIAL_ANALYST_MODEL = os.getenv("FINANCIAL_ANALYST_MODEL", "gpt-oss:20b")
 RISK_ANALYST_MODEL = os.getenv("RISK_ANALYST_MODEL", "qwen3:14b")
 STRATEGY_CONSULTANT_MODEL = os.getenv("STRATEGY_CONSULTANT_MODEL", "qwen3.5:27b")
 
@@ -109,6 +109,25 @@ def _repair_json(text: str) -> str:
 def strip_think_tags(text: str) -> str:
     """Remove <think>...</think> blocks from text."""
     return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+
+
+def _today() -> str:
+    """Return today's date formatted for prompt injection."""
+    return date.today().strftime("%B %d, %Y")
+
+
+def _extract_urls(text: str) -> list[str]:
+    """Extract all unique URLs from tool result text, preserving order."""
+    urls = re.findall(r'https?://[^\s"\'<>\]\)},]+', text)
+    seen: set[str] = set()
+    unique: list[str] = []
+    for u in urls:
+        # Strip trailing punctuation that might have been captured
+        u = u.rstrip(".,;:")
+        if u not in seen:
+            seen.add(u)
+            unique.append(u)
+    return unique
 
 
 # ---------------------------------------------------------------------------
@@ -313,6 +332,17 @@ RESTRICTIONS -- You must obey these absolutely:
 - Do NOT make strategic recommendations
 - ONLY produce the analysis plan -- nothing more
 
+GEOGRAPHIC SPECIFICITY -- CRITICAL:
+- Extract the EXACT target country and city from the client question
+- Include the specific country and city name in EVERY workstream title
+- Include the specific country and city name in EVERY sub-question
+- NEVER use vague phrases like "the target market" or "the region" or \
+"the local market" -- always name the specific location
+- Example: Instead of "Analyze the target market size" write \
+"Analyze the IT services market size in Bucharest, Romania"
+- If the client mentions a budget, include the budget amount in the \
+relevant financial workstream sub-questions
+
 OUTPUT FORMAT -- You must respond with valid JSON matching this exact structure:
 {
   "analysis_plan": {
@@ -337,6 +367,8 @@ You are the Engagement Manager reviewing the output of the {agent_name}. \
 Your job is to ensure the output is complete, accurate, and free of \
 hallucinations before it moves to the next stage.
 
+Today's date: {today}
+
 ORIGINAL CLIENT QUESTION:
 {question}
 
@@ -351,14 +383,19 @@ ANALYSIS PLAN:
 REVIEW CHECKLIST -- evaluate each point:
 1. COMPLETENESS: Does the output address the relevant workstreams from the \
 analysis plan? List any gaps.
-2. SOURCE GROUNDING: Are all claims backed by cited sources (URLs) or \
+2. GEOGRAPHIC ACCURACY: Does the output analyze the CORRECT target country \
+and city specified in the client question? Flag if the wrong country/city \
+is analyzed.
+3. SOURCE GROUNDING: Are all claims backed by cited sources (URLs) or \
 explicitly marked as assumptions? Flag any unsourced statistics or claims.
-3. NO HALLUCINATIONS: Does the output contain any invented data, fabricated \
+4. NO HALLUCINATIONS: Does the output contain any invented data, fabricated \
 sources, or numbers that cannot be traced to the research? Flag specific \
-examples.
-4. CONSISTENCY: Does the output contradict any data from previous agents? \
+examples. Check if competitor names and URLs look legitimate.
+5. CONSISTENCY: Does the output contradict any data from previous agents? \
 Flag contradictions.
-5. QUALITY: Is it professional, well-structured, and detailed enough?
+6. TEMPORAL ACCURACY: Are all dates and timelines plausible relative to \
+today's date ({today})? Flag any references to past dates as future events.
+7. QUALITY: Is it professional, well-structured, and detailed enough?
 
 Respond with ONLY this JSON:
 {{
@@ -388,13 +425,25 @@ search results -- search snippets are NOT enough, you MUST read full pages
 4. For EACH search, call read_document on at least 1-2 of the top URLs
 5. Continue until you have covered all workstreams in the analysis plan
 
+URL TRACKING RULES -- ABSOLUTE:
+- After each search_web call, note the EXACT URLs returned in the results
+- When you call read_document, use the EXACT URL from search results
+- You will need to provide these EXACT URLs later -- do NOT reconstruct \
+URLs from memory, do NOT guess URLs, do NOT modify URLs
+- Copy URLs character-by-character from the search results
+- If a URL returns an error, note the error and move on -- do NOT \
+substitute a different URL you remember from training data
+
 ANTI-HALLUCINATION RULES:
 - You MUST call read_document at least 4 times during your research
 - Search snippets alone are too shallow -- they contain only 1-2 sentences \
 and often have outdated or incomplete data
 - The full page content from read_document is essential for accurate data
-- Track every URL you read -- you will need to cite them in your synthesis
 - If a search returns no useful results, say so -- do NOT make up data
+- ONLY report facts you found in actual search results or read pages
+- Do NOT supplement search results with information from your training data
+- If you cannot find data specific to the client's niche, note this gap \
+explicitly -- do NOT substitute data from a broader/different market
 
 RESTRICTIONS:
 - Do NOT produce financial analysis, ROI estimates, or cost projections
@@ -407,14 +456,35 @@ You are a Market Researcher at an AI consulting firm. You have already \
 conducted web research and the findings are provided below. Now synthesize \
 that research into structured findings.
 
+URL CITATION RULES -- these are ABSOLUTE and override everything else:
+- You will be given a URL REGISTRY containing every URL found during research
+- You may ONLY cite URLs that appear in the URL REGISTRY
+- COPY URLs exactly as they appear in the registry -- do NOT modify them
+- Do NOT reconstruct URLs from memory (e.g., do NOT guess that a site \
+might have a page at /some-path -- only use URLs you actually found)
+- Do NOT fabricate URLs that look plausible -- this is the #1 error to avoid
+- If you cannot find a URL for a claim, write "(source: research data, \
+no specific URL available)" -- this is MUCH better than a fake URL
+
 ANTI-HALLUCINATION RULES -- these are ABSOLUTE:
-- Every claim MUST have a source URL in parentheses after it
+- ONLY include facts, statistics, and competitor names that appear in the \
+RESEARCH FINDINGS below -- do NOT supplement from your training knowledge
 - Every statistic or number MUST include the URL where it was found
 - If the research does NOT contain data for a field, you MUST write \
 "Data not available from research" -- do NOT invent numbers
 - Do NOT extrapolate beyond what the sources say
 - Do NOT combine partial data from different sources to create new statistics
 - If two sources give different numbers, report BOTH with their URLs
+- For competitor names: only list companies that appear in the research \
+findings -- do NOT add companies you "know" from training data
+
+NICHE DATA HONESTY -- CRITICAL:
+- If the client's specific niche has no published market data, you MUST \
+state this explicitly in market_overview
+- Explain what proxy data you are using and why (e.g., "No published data \
+exists for physical PC cleaning services in Bucharest. The following \
+analysis uses the broader IT services market as a proxy.")
+- Do NOT pretend that general market data applies directly to a niche
 
 RESTRICTIONS -- You must obey these absolutely:
 - Do NOT perform financial analysis (costs, ROI, projections)
@@ -425,14 +495,14 @@ RESTRICTIONS -- You must obey these absolutely:
 OUTPUT FORMAT -- You must respond with valid JSON matching this exact structure:
 {
   "market_analysis": {
-    "market_overview": "High-level overview with (source URL) citations",
-    "market_size_and_growth": "Size estimates and growth projections with (source URL)",
+    "market_overview": "High-level overview. State if niche-specific data was unavailable and what proxy was used. Cite (source URL) for every claim.",
+    "market_size_and_growth": "Size estimates with (source URL). If not found, write 'Data not available from research'.",
     "key_competitors": [
       {
-        "name": "Competitor name",
+        "name": "Competitor name (only from research results)",
         "description": "What they do and how they compete",
         "market_position": "Their standing (leader/challenger/niche)",
-        "source": "URL where this information was found"
+        "source": "EXACT URL from the URL REGISTRY where this competitor was found"
       }
     ],
     "market_trends": ["Trend 1 (source URL)", "Trend 2 (source URL)"],
@@ -440,11 +510,11 @@ OUTPUT FORMAT -- You must respond with valid JSON matching this exact structure:
       {
         "segment": "Segment name",
         "description": "Characteristics and needs",
-        "size_estimate": "Relative or absolute size with (source URL)"
+        "size_estimate": "Relative or absolute size with (source URL) or 'Estimated based on [assumption]'"
       }
     ],
     "key_findings": ["Finding 1 (source URL)", "Finding 2 (source URL)"],
-    "sources": ["URL 1", "URL 2", "URL 3", "URL 4"]
+    "sources": ["Only URLs from the URL REGISTRY that were actually cited above"]
   }
 }
 
@@ -463,6 +533,8 @@ rates, competitor pricing, salary ranges, etc.) and use THOSE as your inputs
 - Calculate ROI and break-even timeline
 - Perform sensitivity analysis on key assumptions
 - Show ALL calculations step by step in your reasoning before outputting JSON
+- VALIDATE: after calculating total costs, compare against any budget \
+mentioned in the client question and flag discrepancies
 
 ANTI-HALLUCINATION RULES -- these are ABSOLUTE:
 - ONLY use numbers that appear in the market research data or can be directly \
@@ -478,6 +550,24 @@ derived from it with simple arithmetic
 - NEVER invent market data, competitor revenue, or industry statistics
 - If you cannot perform a calculation due to missing data, say so explicitly
 
+REVENUE PROJECTION HONESTY:
+- Revenue projections are ALWAYS estimates based on assumptions -- label them \
+as such: "These projections are estimates based on the following assumptions"
+- For each projection, explicitly list EVERY assumption and whether it came \
+from market research or was assumed
+- Do NOT present revenue projections as researched figures
+- If the market research lacks pricing data for the specific niche, state \
+"No pricing data available for this niche -- projections use assumed pricing"
+- Use conservative baseline assumptions when data is missing
+
+BUDGET VALIDATION -- MANDATORY:
+- If the client question mentions a budget (e.g., "budget of €100K"), you \
+MUST compare your total estimated costs against that budget
+- Include a "budget_validation" field in your output
+- If total costs EXCEED the stated budget, flag this prominently and state \
+the exact discrepancy
+- Suggest what would need to change to fit within budget
+
 RESTRICTIONS -- You must obey these absolutely:
 - Do NOT perform market research -- that data is already provided
 - Do NOT assess non-financial risks (only flag financial risks)
@@ -492,7 +582,7 @@ OUTPUT FORMAT -- respond with valid JSON matching this structure:
     "cost_estimates": [
       {
         "category": "Cost category name",
-        "amount": "$X,XXX",
+        "amount": "€X,XXX",
         "timeframe": "one-time / monthly / annual",
         "notes": "Key assumptions -- cite market research data or mark [ASSUMED]"
       }
@@ -500,15 +590,16 @@ OUTPUT FORMAT -- respond with valid JSON matching this structure:
     "revenue_projections": [
       {
         "scenario": "Conservative / Moderate / Aggressive",
-        "year_1": "$X,XXX",
-        "year_2": "$X,XXX",
-        "year_3": "$X,XXX",
-        "assumptions": "Key assumptions -- reference market research data"
+        "year_1": "€X,XXX",
+        "year_2": "€X,XXX",
+        "year_3": "€X,XXX",
+        "assumptions": "EVERY assumption listed. Mark each as [FROM RESEARCH] or [ASSUMED]"
       }
     ],
     "roi_analysis": "Expected ROI with calculation shown",
     "break_even_timeline": "When the investment breaks even, with math shown",
     "sensitivity_analysis": "How results change if key assumptions vary by +/-20%",
+    "budget_validation": "Compare total costs vs stated budget. State: Total €X vs Budget €Y. Flag if exceeded.",
     "key_financial_risks": ["Financial risk 1", "Financial risk 2"]
   }
 }
@@ -532,6 +623,12 @@ INSTRUCTIONS:
 - Use assess_risk for each major risk you identify to create structured entries
 - Identify at least 5-8 distinct risks across multiple categories
 
+URL TRACKING RULES -- ABSOLUTE:
+- After each search_web call, note the EXACT URLs returned
+- When you call read_document, use the EXACT URL from search results
+- Copy URLs character-by-character -- do NOT reconstruct from memory
+- You will need to cite these exact URLs later
+
 ANTI-HALLUCINATION RULES:
 - Every risk you identify MUST be based on information from search results or \
 the provided market research / financial analysis data
@@ -539,6 +636,7 @@ the provided market research / financial analysis data
 for each risk
 - Do NOT invent regulatory requirements or compliance rules -- verify via search
 - If you cannot find evidence for a risk, do NOT include it
+- Do NOT add risks from your training knowledge -- only from research findings
 
 RESTRICTIONS:
 - Do NOT perform market research beyond what's needed for risk identification
@@ -552,13 +650,23 @@ You are a Risk Analyst at an AI consulting firm. You have already researched \
 and assessed risks. The findings are provided below. Now synthesize them into \
 a structured risk assessment.
 
+URL CITATION RULES -- these are ABSOLUTE:
+- You will be given a URL REGISTRY containing every URL found during research
+- You may ONLY cite URLs that appear in the URL REGISTRY
+- COPY URLs exactly -- do NOT reconstruct or fabricate URLs
+- If a risk came from market research or financial data (not a URL), write \
+"source: market research data" or "source: financial analysis data"
+- A fake URL is worse than no URL -- when in doubt, cite the data source \
+instead of guessing a URL
+
 ANTI-HALLUCINATION RULES -- these are ABSOLUTE:
 - Base your output ONLY on the risk research provided -- do not invent data
-- Every risk must cite its source (URL, "market research data", or "financial data")
-- Do NOT invent regulatory requirements or compliance rules
+- Do NOT invent regulatory requirements or compliance rules -- only cite \
+regulations you found in actual search results
 - Only identify risks -- do NOT propose full solutions, only brief mitigation ideas
 - If the research did not cover a risk category, say "No risks identified in \
 this category from available research" -- do NOT fill in gaps with guesses
+- Do NOT add risks from your training knowledge that were not found in research
 
 RESTRICTIONS -- You must obey these absolutely:
 - Do NOT perform market research
@@ -578,7 +686,7 @@ OUTPUT FORMAT -- respond with valid JSON matching this structure:
         "category": "regulatory / market / operational / competitive / financial",
         "probability": "low / medium / high",
         "impact": "low / medium / high",
-        "source": "URL or data source where this risk was identified",
+        "source": "EXACT URL from URL REGISTRY, or 'market research data' / 'financial analysis data'",
         "mitigation_suggestion": "Brief mitigation idea"
       }
     ],
@@ -593,6 +701,10 @@ STRATEGY_CONSULTANT_PROMPT = """\
 You are a senior Strategy Consultant at an AI consulting firm. You synthesize \
 all research inputs -- market research, financial analysis, AND risk assessment \
 -- into a final consulting recommendation.
+
+TODAY'S DATE: {today}
+All timelines in your report must reference dates starting from today. \
+Do NOT use dates from the past. For example, "Q2 2026" not "Q1 2024".
 
 RESPONSIBILITIES:
 - Analyze the market research, financial analysis, and risk assessment findings
@@ -671,7 +783,14 @@ class EngagementManager:
             model=self.model,
             messages=[
                 {"role": "system", "content": ENGAGEMENT_MANAGER_PROMPT},
-                {"role": "user", "content": f"Client question:\n{question}\n\n/think"},
+                {"role": "user", "content": (
+                    f"Today's date: {_today()}\n\n"
+                    f"Client question:\n{question}\n\n"
+                    "Remember: include the SPECIFIC target country and city "
+                    "in EVERY workstream title and EVERY sub-question. "
+                    "Never use vague phrases like 'the target market'.\n\n"
+                    "/think"
+                )},
             ],
             format="json",
         )
@@ -702,6 +821,7 @@ class EngagementManager:
             analysis_plan=json.dumps(analysis_plan, indent=2),
             agent_output=output_str,
             extra_context=extra_context,
+            today=_today(),
         )
         # Use /no_think for fast, direct review
         response = ollama.chat(
@@ -810,13 +930,23 @@ class MarketResearcher:
         self, question: str, analysis_plan: dict, research_context: str
     ) -> dict:
         """Convert the raw research into the required JSON schema.
-        Uses /no_think to minimize hallucination during factual synthesis."""
+        Uses /no_think to minimize hallucination during factual synthesis.
+        Includes a URL registry so the agent can only cite real URLs."""
+        urls = _extract_urls(research_context)
+        url_list = "\n".join(
+            f"  [{i+1}] {u}" for i, u in enumerate(urls)
+        ) if urls else "  (no URLs found in research)"
+
         user_prompt = (
             f"CLIENT QUESTION:\n{question}\n\n"
             f"ANALYSIS PLAN:\n{json.dumps(analysis_plan, indent=2)}\n\n"
             f"RESEARCH FINDINGS:\n{research_context}\n\n"
+            f"URL REGISTRY — you may ONLY cite URLs from this list:\n{url_list}\n\n"
             "Synthesize the research findings above into a structured market "
-            "analysis. Every claim must cite a source URL from the research.\n\n"
+            "analysis. IMPORTANT: only cite URLs from the URL REGISTRY above. "
+            "Copy them exactly. Do NOT reconstruct or fabricate any URLs. "
+            "Only include facts found in the RESEARCH FINDINGS — do NOT add "
+            "information from your own knowledge.\n\n"
             "/no_think"
         )
         response = ollama.chat(
@@ -834,7 +964,7 @@ class FinancialAnalyst:
     """Handles all quantitative/financial analysis.
 
     Level 4 changes:
-      - Switched from DeepSeek R1 to Qwen 3 14B
+      - Uses GPT-OSS 20B for strong quantitative reasoning
       - Uses /think mode for calculations, /no_think for data extraction
       - Must explicitly trace every number to market research data
       - Supports revision with EM feedback
@@ -862,6 +992,7 @@ class FinancialAnalyst:
             )
 
         user_prompt = (
+            f"Today's date: {_today()}\n\n"
             f"CLIENT QUESTION:\n{question}\n\n"
             f"ANALYSIS PLAN:\n{json.dumps(analysis_plan, indent=2)}\n\n"
             f"MARKET RESEARCH FINDINGS:\n{json.dumps(market_analysis, indent=2)}\n\n"
@@ -874,8 +1005,13 @@ class FinancialAnalyst:
             "- Sensitivity analysis (what happens if key inputs change by +/-20%)\n\n"
             "STEP 3: Show all calculations step by step in your thinking, "
             "then output the final structured JSON.\n\n"
+            "STEP 4: BUDGET CHECK — if the client question mentions a budget, "
+            "compare your total estimated costs against it and include a "
+            "'budget_validation' field in your output.\n\n"
             "IMPORTANT: Every number in your output must be traceable to either "
-            "the market research data or an explicitly stated [ASSUMED] assumption."
+            "the market research data or an explicitly stated [ASSUMED] assumption. "
+            "Revenue projections are estimates — label them as such and list "
+            "every assumption."
             f"{revision_instruction}\n\n"
             "/think"
         )
@@ -994,16 +1130,25 @@ class RiskAnalyst:
         research_context: str,
     ) -> dict:
         """Convert the risk research into the required JSON schema.
-        Uses /think for analytical reasoning about risk levels."""
+        Uses /think for analytical reasoning about risk levels.
+        Includes a URL registry so the agent can only cite real URLs."""
+        urls = _extract_urls(research_context)
+        url_list = "\n".join(
+            f"  [{i+1}] {u}" for i, u in enumerate(urls)
+        ) if urls else "  (no URLs found in research)"
+
         user_prompt = (
             f"CLIENT QUESTION:\n{question}\n\n"
             f"ANALYSIS PLAN:\n{json.dumps(analysis_plan, indent=2)}\n\n"
             f"MARKET RESEARCH FINDINGS:\n{json.dumps(market_analysis, indent=2)}\n\n"
             f"FINANCIAL ANALYSIS:\n{json.dumps(financial_analysis, indent=2)}\n\n"
             f"RISK RESEARCH FINDINGS:\n{research_context}\n\n"
+            f"URL REGISTRY — you may ONLY cite URLs from this list:\n{url_list}\n\n"
             "Synthesize the risk research above into a structured risk assessment. "
             "Include all risks identified during the research phase. "
-            "Cite the source for each risk.\n\n"
+            "For each risk, cite the source: use an EXACT URL from the URL REGISTRY, "
+            "or 'market research data' / 'financial analysis data'. "
+            "Do NOT fabricate or reconstruct URLs.\n\n"
             "/think"
         )
         response = ollama.chat(
@@ -1050,6 +1195,7 @@ class StrategyConsultant:
             )
 
         user_prompt = (
+            f"Today's date: {_today()}\n\n"
             f"CLIENT QUESTION:\n{question}\n\n"
             f"ANALYSIS PLAN:\n{json.dumps(analysis_plan, indent=2)}\n\n"
             f"MARKET RESEARCH FINDINGS:\n{json.dumps(market_analysis, indent=2)}\n\n"
@@ -1058,13 +1204,16 @@ class StrategyConsultant:
             "Using ALL the inputs above -- analysis plan, market research, "
             "financial analysis, and risk assessment -- write a complete "
             "consulting report with your strategic recommendation. "
-            "Every claim must reference which research input it comes from."
+            "Every claim must reference which research input it comes from. "
+            "All dates and timelines must start from today's date. "
+            "Do NOT introduce any new facts or statistics not present in the inputs above."
             f"{revision_instruction}"
         )
+        sc_prompt = STRATEGY_CONSULTANT_PROMPT.format(today=_today())
         stream = ollama.chat(
             model=self.model,
             messages=[
-                {"role": "system", "content": STRATEGY_CONSULTANT_PROMPT},
+                {"role": "system", "content": sc_prompt},
                 {"role": "user", "content": user_prompt},
             ],
             stream=True,

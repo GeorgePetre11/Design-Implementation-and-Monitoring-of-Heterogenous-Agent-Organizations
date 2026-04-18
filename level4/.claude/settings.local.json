@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xxd \"C:/Users/petre/Documents/Licenta2026/level4/entrypoint.sh\" | head -3)",
+      "Bash(docker compose:*)",
+      "Bash(curl -s http://localhost:8000/status)",
+      "Bash(python -m json.tool)",
+      "Bash(curl -s http://localhost:11434/api/ps)",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\(''agents.py''\\).read\\(\\)\\); print\\(''agents.py: OK''\\)\")",
+      "Bash(python3 -c \"import ast; ast.parse\\(open\\(''orchestrator.py''\\).read\\(\\)\\); print\\(''orchestrator.py: OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''agents.py''\\).read\\(\\)\\); print\\(''agents.py: OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''orchestrator.py''\\).read\\(\\)\\); print\\(''orchestrator.py: OK''\\)\")"
+    ]
+  }
+}
