@@ -8,11 +8,11 @@ services:
       - "8004:8000"
     environment:
       - OLLAMA_HOST=http://host.docker.internal:11434
-      - ENGAGEMENT_MANAGER_MODEL=qwen3:8b
-      - MARKET_RESEARCHER_MODEL=qwen3:14b
+      - ENGAGEMENT_MANAGER_MODEL=qwen3.5:9b
+      - MARKET_RESEARCHER_MODEL=qwen3.5:35b-a3b
       - FINANCIAL_ANALYST_MODEL=gpt-oss:20b
-      - RISK_ANALYST_MODEL=qwen3:14b
-      - STRATEGY_CONSULTANT_MODEL=qwen3.5:27b
+      - RISK_ANALYST_MODEL=qwen3.5:9b
+      - STRATEGY_CONSULTANT_MODEL=gemma4:31b
       - EVALUATOR_URL=${EVALUATOR_URL:-http://host.docker.internal:8005}
 
     extra_hosts:

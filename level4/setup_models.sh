@@ -6,10 +6,10 @@
 # Run this BEFORE starting the Level 4 pipeline.
 #
 # Required models:
-#   qwen3:8b     — Engagement Manager (fast decomposition + review)
-#   qwen3:14b    — Market Researcher, Risk Analyst
-#   gpt-oss:20b  — Financial Analyst (strong quantitative reasoning)
-#   qwen3.5:27b  — Strategy Consultant (256K context, superior writing)
+#   qwen3.5:9b        — Engagement Manager, Risk Analyst (fits fully in VRAM, /think mode)
+#   qwen3.5:35b-a3b   — Market Researcher (35B MoE with 3B active params — fast synthesis)
+#   gpt-oss:20b       — Financial Analyst (strong quantitative reasoning)
+#   gemma4:31b        — Strategy Consultant (top-tier writing, GPU+RAM split OK since runs once)
 #
 # Note: The Evaluator is a separate application (not part of this pipeline).
 # =============================================================================
@@ -19,10 +19,10 @@ set -e
 OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
 
 REQUIRED_MODELS=(
-    "qwen3:8b"
-    "qwen3:14b"
+    "qwen3.5:9b"
+    "qwen3.5:35b-a3b"
     "gpt-oss:20b"
-    "qwen3.5:27b"
+    "gemma4:31b"
 )
 
 echo "==========================================="
@@ -55,7 +55,7 @@ for model in "${REQUIRED_MODELS[@]}"; do
     if echo "$AVAILABLE" | grep -q "^${model}$"; then
         PRESENT+=("$model")
     else
-        # Also check without exact match (e.g., qwen3:8b might show as qwen3:8b-q4_K_M)
+        # Also check without exact match (e.g., qwen3.5:9b might show as qwen3.5:9b-q4_K_M)
         if echo "$AVAILABLE" | grep -q "^${model}"; then
             PRESENT+=("$model")
         else

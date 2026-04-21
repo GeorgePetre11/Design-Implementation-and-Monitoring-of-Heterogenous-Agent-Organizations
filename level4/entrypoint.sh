@@ -11,11 +11,11 @@ echo "[level4] Ollama is ready."
 
 # List the models this level expects
 echo "[level4] Expected models:"
-echo "  Engagement Manager : ${ENGAGEMENT_MANAGER_MODEL:-qwen3:8b}"
-echo "  Market Researcher  : ${MARKET_RESEARCHER_MODEL:-qwen3:14b}"
+echo "  Engagement Manager : ${ENGAGEMENT_MANAGER_MODEL:-qwen3.5:9b}"
+echo "  Market Researcher  : ${MARKET_RESEARCHER_MODEL:-qwen3.5:35b-a3b}"
 echo "  Financial Analyst  : ${FINANCIAL_ANALYST_MODEL:-gpt-oss:20b}"
-echo "  Risk Analyst       : ${RISK_ANALYST_MODEL:-qwen3:14b}"
-echo "  Strategy Consultant: ${STRATEGY_CONSULTANT_MODEL:-qwen3.5:27b}"
+echo "  Risk Analyst       : ${RISK_ANALYST_MODEL:-qwen3.5:9b}"
+echo "  Strategy Consultant: ${STRATEGY_CONSULTANT_MODEL:-gemma4:31b}"
 
 echo "[level4] Available models on Ollama:"
 curl -sf "${OLLAMA_BASE}/api/tags" | python3 -c "

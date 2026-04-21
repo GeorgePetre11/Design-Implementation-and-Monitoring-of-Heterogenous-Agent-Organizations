@@ -14,17 +14,19 @@ Note: The Evaluator is a separate application (not part of this pipeline).
 Key differences from Level 3:
   - The EM acts as a Managing Partner: reviews intermediate outputs and can
     send work back with specific revision feedback (max 1 revision per agent).
-  - All agents use /think or /no_think mode toggles for Qwen 3.
+  - Qwen 3.5 agents use /think or /no_think mode toggles; DeepSeek-R1 emits
+    native <think> blocks that are stripped by extract_json(). Gemma 4 has no
+    thinking-mode toggle — any trailing /no_think tokens are harmless.
   - Stricter anti-hallucination prompts with mandatory source tracing.
   - Financial Analyst uses GPT-OSS 20B for strong quantitative reasoning.
-  - Strategy Consultant upgraded to Qwen 3.5 27B (256K context).
+  - Strategy Consultant uses Gemma 4 31B for top-tier synthesis and writing.
 
 Models:
-  Engagement Manager  -> qwen3:8b          (fast decomposition + review)
-  Market Researcher   -> qwen3:14b         (broad knowledge, /no_think synthesis)
+  Engagement Manager  -> qwen3.5:9b        (fast decomposition + review, fits VRAM)
+  Market Researcher   -> qwen3.5:35b-a3b   (35B MoE / 3B active — broad + fast)
   Financial Analyst   -> gpt-oss:20b       (/think for math, /no_think for extraction)
-  Risk Analyst        -> qwen3:14b         (/think for analytical reasoning)
-  Strategy Consultant -> qwen3.5:27b       (256K context, superior writing)
+  Risk Analyst        -> qwen3.5:9b        (/think for analytical reasoning)
+  Strategy Consultant -> gemma4:31b        (superior writing, GPU+RAM split)
 """
 
 import json
@@ -41,11 +43,11 @@ from ddgs import DDGS
 # ---------------------------------------------------------------------------
 # Model configuration (override via environment variables)
 # ---------------------------------------------------------------------------
-ENGAGEMENT_MANAGER_MODEL = os.getenv("ENGAGEMENT_MANAGER_MODEL", "qwen3:8b")
-MARKET_RESEARCHER_MODEL = os.getenv("MARKET_RESEARCHER_MODEL", "qwen3:14b")
+ENGAGEMENT_MANAGER_MODEL = os.getenv("ENGAGEMENT_MANAGER_MODEL", "qwen3.5:9b")
+MARKET_RESEARCHER_MODEL = os.getenv("MARKET_RESEARCHER_MODEL", "qwen3.5:35b-a3b")
 FINANCIAL_ANALYST_MODEL = os.getenv("FINANCIAL_ANALYST_MODEL", "gpt-oss:20b")
-RISK_ANALYST_MODEL = os.getenv("RISK_ANALYST_MODEL", "qwen3:14b")
-STRATEGY_CONSULTANT_MODEL = os.getenv("STRATEGY_CONSULTANT_MODEL", "qwen3.5:27b")
+RISK_ANALYST_MODEL = os.getenv("RISK_ANALYST_MODEL", "qwen3.5:9b")
+STRATEGY_CONSULTANT_MODEL = os.getenv("STRATEGY_CONSULTANT_MODEL", "gemma4:31b")
 
 AGENT_MODELS = {
     "engagement_manager": ENGAGEMENT_MANAGER_MODEL,
@@ -54,6 +56,12 @@ AGENT_MODELS = {
     "risk_analyst": RISK_ANALYST_MODEL,
     "strategy_consultant": STRATEGY_CONSULTANT_MODEL,
 }
+
+# Ollama's default num_ctx is 4096 tokens, which silently truncates large
+# research contexts and prior-stage JSON payloads. Every chat call below
+# overrides it so the model actually sees the full input.
+NUM_CTX_SMALL = 8192    # small inputs (EM decomposition)
+NUM_CTX_LARGE = 32768   # research loops, synthesis, reviews, downstream agents
 
 
 # ---------------------------------------------------------------------------
@@ -413,15 +421,25 @@ MARKET_RESEARCHER_RESEARCH_PROMPT = """\
 You are a Market Researcher at an AI consulting firm. Your task right now is \
 to gather information using your research tools.
 
+CURRENT YEAR: 2026. All market size, growth, competitor, and trend data you \
+report MUST reflect the state of the market in 2026 (or the most recent \
+figures available up to 2026). Your own training data may be older than \
+this -- treat the web as the authoritative source, and always prefer newer \
+sources over older ones when the numbers conflict. When you call search_web, \
+include the year (e.g., "2026" or "2025-2026") in your queries so results \
+are current.
+
 You have two tools available:
 - search_web(query, max_results): search the web for relevant information
 - read_document(url): fetch and read the full text of a web page
 
 CRITICAL INSTRUCTIONS -- follow this workflow:
-1. Start by calling search_web with a broad query about the market
+1. Start by calling search_web with a broad query about the market, \
+including "2026" (or "2025-2026") in the query string
 2. IMMEDIATELY call read_document on the 2-3 most relevant URLs from the \
 search results -- search snippets are NOT enough, you MUST read full pages
-3. Then search for specific topics: competitors, market size, trends, etc.
+3. Then search for specific topics: competitors, market size, trends, etc. \
+-- always include the year in each query
 4. For EACH search, call read_document on at least 1-2 of the top URLs
 5. Continue until you have covered all workstreams in the analysis plan
 
@@ -455,6 +473,13 @@ MARKET_RESEARCHER_SYNTHESIS_PROMPT = """\
 You are a Market Researcher at an AI consulting firm. You have already \
 conducted web research and the findings are provided below. Now synthesize \
 that research into structured findings.
+
+CURRENT YEAR: 2026. The market analysis you produce must describe the market \
+as of 2026. When the research findings contain figures from multiple years, \
+prefer the most recent data point and note the year explicitly (e.g., \
+"$4.2B as of 2026 (source: ...)"). Do NOT silently use pre-2026 training \
+knowledge to fill gaps -- if the research does not cover a 2026 figure, say \
+so rather than reporting stale numbers.
 
 URL CITATION RULES -- these are ABSOLUTE and override everything else:
 - You will be given a URL REGISTRY containing every URL found during research
@@ -793,6 +818,7 @@ class EngagementManager:
                 )},
             ],
             format="json",
+            options={"num_ctx": NUM_CTX_SMALL},
         )
         return extract_json(response["message"]["content"])
 
@@ -831,6 +857,7 @@ class EngagementManager:
                 {"role": "user", "content": prompt + "\n\n/no_think"},
             ],
             format="json",
+            options={"num_ctx": NUM_CTX_LARGE},
         )
         try:
             result = extract_json(response["message"]["content"])
@@ -909,6 +936,7 @@ class MarketResearcher:
                 model=self.model,
                 messages=messages,
                 tools=_SEARCH_TOOLS,
+                options={"num_ctx": NUM_CTX_LARGE},
             )
             msg = response["message"]
             messages.append(msg)
@@ -956,6 +984,7 @@ class MarketResearcher:
                 {"role": "user", "content": user_prompt},
             ],
             format="json",
+            options={"num_ctx": NUM_CTX_LARGE},
         )
         return extract_json(response["message"]["content"])
 
@@ -1022,6 +1051,7 @@ class FinancialAnalyst:
                 {"role": "user", "content": user_prompt},
             ],
             format="json",
+            options={"num_ctx": NUM_CTX_LARGE},
         )
         return extract_json(response["message"]["content"])
 
@@ -1104,6 +1134,7 @@ class RiskAnalyst:
                 model=self.model,
                 messages=messages,
                 tools=_RA_TOOLS,
+                options={"num_ctx": NUM_CTX_LARGE},
             )
             msg = response["message"]
             messages.append(msg)
@@ -1158,6 +1189,7 @@ class RiskAnalyst:
                 {"role": "user", "content": user_prompt},
             ],
             format="json",
+            options={"num_ctx": NUM_CTX_LARGE},
         )
         return extract_json(response["message"]["content"])
 
@@ -1166,7 +1198,7 @@ class StrategyConsultant:
     """Synthesizes all inputs into a final consulting report (Markdown, streamed).
 
     Level 4 changes:
-      - Upgraded to Qwen 3.5 27B (256K context)
+      - Upgraded to Gemma 4 31B (top-tier writing; GPU+RAM split acceptable since it runs once)
       - Cannot introduce any claims not in MR/FA/RA data
       - Supports revision with EM feedback
     """
@@ -1217,6 +1249,7 @@ class StrategyConsultant:
                 {"role": "user", "content": user_prompt},
             ],
             stream=True,
+            options={"num_ctx": NUM_CTX_LARGE},
         )
         yield from _filter_think_stream(stream)
 
