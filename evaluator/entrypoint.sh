@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-MODEL="${EVALUATOR_MODEL:-kimi-k2.5}"
-BASE_URL="${EVALUATOR_BASE_URL:-https://api.moonshot.ai/v1}"
+MODEL="${EVALUATOR_MODEL:-gemini-2.5-flash}"
+BASE_URL="${EVALUATOR_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}"
 
 if [ -z "${EVALUATOR_API_KEY}" ]; then
     echo "[evaluator] WARNING: EVALUATOR_API_KEY is not set."

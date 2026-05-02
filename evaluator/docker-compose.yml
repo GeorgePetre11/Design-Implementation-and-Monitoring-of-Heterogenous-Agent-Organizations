@@ -8,8 +8,8 @@ services:
       - "8005:8000"
     environment:
       - EVALUATOR_API_KEY=${EVALUATOR_API_KEY:-}
-      - EVALUATOR_BASE_URL=${EVALUATOR_BASE_URL:-https://api.moonshot.ai/v1}
-      - EVALUATOR_MODEL=${EVALUATOR_MODEL:-kimi-k2.5}
+      - EVALUATOR_BASE_URL=${EVALUATOR_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
+      - EVALUATOR_MODEL=${EVALUATOR_MODEL:-gemini-2.5-flash}
     restart: unless-stopped
 
   frontend:

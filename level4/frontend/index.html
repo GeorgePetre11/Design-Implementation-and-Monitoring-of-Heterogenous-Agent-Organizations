@@ -266,7 +266,7 @@
 </div>
 
 <div id="eval-section">
-  <h2>Evaluation Scorecard (Kimi K2.5) <span id="eval-round-badge"></span></h2>
+  <h2>Evaluation Scorecard (Gemini 2.5) <span id="eval-round-badge"></span></h2>
   <div class="eval-grid" id="eval-grid"></div>
   <div class="eval-overall" id="eval-overall"></div>
   <div class="eval-issues" id="eval-issues"><h3>Critical Issues</h3><ul id="eval-issues-list"></ul></div>
@@ -316,16 +316,68 @@ function toggleSection(agent) {
   document.getElementById("content-" + agent).classList.toggle("open");
   document.getElementById("toggle-" + agent).classList.toggle("open");
 }
+// Markdown renderer that groups consecutive list items into real <ul>/<ol>
+// blocks and preserves nesting by indentation. Produces proper HTML so the
+// print-to-PDF flow renders bullets instead of literal `*` characters.
 function renderMarkdown(text) {
-  return text
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  // Stack of open list contexts: { type: 'ul'|'ol', indent: number }
+  const stack = [];
+  const closeTo = (targetLen) => {
+    while (stack.length > targetLen) { out.push(`</${stack.pop().type}>`); }
+  };
+  const closeAll = () => closeTo(0);
+
+  for (let raw of lines) {
+    if (/^\s*$/.test(raw)) { closeAll(); out.push(""); continue; }
+
+    let m;
+    // Headers (outside any list)
+    if ((m = raw.match(/^\s*###\s+(.+)$/))) { closeAll(); out.push(`<h3>${m[1]}</h3>`); continue; }
+    if ((m = raw.match(/^\s*##\s+(.+)$/)))  { closeAll(); out.push(`<h2>${m[1]}</h2>`); continue; }
+    if ((m = raw.match(/^\s*#\s+(.+)$/)))   { closeAll(); out.push(`<h1>${m[1]}</h1>`); continue; }
+    if (/^\s*---\s*$/.test(raw))            { closeAll(); out.push('<hr>'); continue; }
+
+    // Bullet list item: -, *, or •  (accept any indent)
+    if ((m = raw.match(/^(\s*)[-*•]\s+(.+)$/))) {
+      const indent = m[1].replace(/\t/g, '    ').length;
+      const content = inlineFormat(m[2]);
+      while (stack.length && stack[stack.length - 1].indent > indent) out.push(`</${stack.pop().type}>`);
+      if (!stack.length || stack[stack.length - 1].indent < indent || stack[stack.length - 1].type !== 'ul') {
+        if (stack.length && stack[stack.length - 1].indent === indent) out.push(`</${stack.pop().type}>`);
+        stack.push({ type: 'ul', indent });
+        out.push('<ul>');
+      }
+      out.push(`<li>${content}</li>`);
+      continue;
+    }
+    // Ordered list item: 1. 2. 3.
+    if ((m = raw.match(/^(\s*)\d+\.\s+(.+)$/))) {
+      const indent = m[1].replace(/\t/g, '    ').length;
+      const content = inlineFormat(m[2]);
+      while (stack.length && stack[stack.length - 1].indent > indent) out.push(`</${stack.pop().type}>`);
+      if (!stack.length || stack[stack.length - 1].indent < indent || stack[stack.length - 1].type !== 'ol') {
+        if (stack.length && stack[stack.length - 1].indent === indent) out.push(`</${stack.pop().type}>`);
+        stack.push({ type: 'ol', indent });
+        out.push('<ol>');
+      }
+      out.push(`<li>${content}</li>`);
+      continue;
+    }
+
+    // Plain paragraph line
+    closeAll();
+    out.push(`<p>${inlineFormat(raw)}</p>`);
+  }
+  closeAll();
+  return out.join('\n');
+}
+function inlineFormat(s) {
+  return s
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^---$/gm, '<hr>')
-    .replace(/^- (.+)$/gm, '&bull; $1')
-    .replace(/\n/g, '<br>');
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 function riskColor(level) {
   if (level === "critical") return "#ef4444";
@@ -610,7 +662,7 @@ function handleEvent(msg) {
       }
       break;
     case "evaluator_start":
-      setStatus(`Evaluator (Kimi K2.5) scoring — round ${msg.round}...`, "running");
+      setStatus(`Evaluator (Gemini 2.5) scoring — round ${msg.round}...`, "running");
       break;
     case "evaluator_complete":
       renderEvaluation(msg.scorecard || {}, msg.round);
@@ -653,46 +705,34 @@ function downloadPDF() {
   <meta charset="UTF-8"/>
   <title>Consulting Report</title>
   <style>
-    body{font-family:'Segoe UI',Georgia,serif;font-size:13px;line-height:1.8;color:#1a1a1a;max-width:800px;margin:40px auto;padding:0 40px}
-    h1{font-size:1.6rem;border-bottom:2px solid #1a1a1a;padding-bottom:6px;margin-top:1.5rem}
-    h2{font-size:1.25rem;margin-top:1.4rem;color:#111}
-    h3{font-size:1.05rem;margin-top:1rem;color:#333}
-    hr{border:none;border-top:1px solid #ccc;margin:1.5rem 0}
-    .pdf-header{display:flex;align-items:center;gap:16px;padding-bottom:16px;margin-bottom:20px;border-bottom:2px solid #1e293b}
-    .pdf-header svg{flex-shrink:0}
-    .pdf-header-text{display:flex;flex-direction:column}
-    .firm-name{font-size:1.4rem;font-weight:700;color:#1e293b;letter-spacing:-0.02em}
-    .firm-tagline{font-size:0.7rem;color:#64748b;letter-spacing:0.08em;text-transform:uppercase;margin-top:2px}
-    .meta{font-size:.8rem;color:#666;margin-bottom:2rem;border-bottom:1px solid #eee;padding-bottom:1rem}
-    @media print{body{margin:0;padding:20px 40px}}
+    body{font-family:'Segoe UI',Georgia,serif;font-size:13px;line-height:1.7;color:#1a1a1a;max-width:800px;margin:40px auto;padding:0 40px;counter-reset: section}
+    h1{font-size:1.6rem;border-bottom:2px solid #1a1a1a;padding-bottom:6px;margin-top:1.2rem}
+    .report-body h2{font-size:1.2rem;margin-top:1.4rem;color:#111;counter-increment: section}
+    .report-body h2::before{content: counter(section) ". "; color:#475569}
+    .report-body h3{font-size:1.0rem;margin-top:0.9rem;color:#333}
+    .report-body ul, .report-body ol{margin:0.3rem 0 0.6rem 1.4rem;padding:0}
+    .report-body li{margin:0.15rem 0}
+    .report-body p{margin:0.4rem 0}
+    hr{border:none;border-top:1px solid #ccc;margin:1.2rem 0}
+    .pdf-header{padding-bottom:10px;margin-bottom:16px;border-bottom:2px solid #1e293b}
+    .report-title{font-size:1.5rem;font-weight:700;color:#0f172a;margin:0}
+    .firm-tagline{font-size:0.65rem;color:#64748b;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px}
+    .report-footer{margin-top:2.5rem;padding-top:0.8rem;border-top:1px solid #e2e8f0;font-size:0.7rem;color:#94a3b8;text-align:center}
+    @page{margin:15mm 15mm 20mm 15mm}
+    @media print{body{margin:0;padding:20px 40px} @page{margin:15mm}}
   </style>
 </head>
 <body>
   <div class="pdf-header">
-    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="48" height="48" rx="10" fill="#1e293b"/>
-      <circle cx="24" cy="10" r="3.5" fill="#38bdf8"/>
-      <circle cx="10" cy="22" r="3.5" fill="#a78bfa"/>
-      <circle cx="38" cy="22" r="3.5" fill="#4ade80"/>
-      <circle cx="10" cy="36" r="3.5" fill="#f59e0b"/>
-      <circle cx="24" cy="36" r="3.5" fill="#f87171"/>
-      <circle cx="38" cy="36" r="3.5" fill="#e879f9"/>
-      <line x1="24" y1="14" x2="10" y2="18" stroke="#475569" stroke-width="1"/>
-      <line x1="24" y1="14" x2="38" y2="18" stroke="#475569" stroke-width="1"/>
-      <line x1="10" y1="26" x2="24" y2="32" stroke="#475569" stroke-width="1"/>
-      <line x1="38" y1="26" x2="24" y2="32" stroke="#475569" stroke-width="1"/>
-    </svg>
-    <div class="pdf-header-text">
-      <span class="firm-name">AI Consulting Firm</span>
-      <span class="firm-tagline">Heterogeneous Agent Organizations — Level 4 (Hybrid)</span>
-    </div>
+    <h1 class="report-title">Strategic Consulting Report</h1>
+    <div class="firm-tagline">AI Consulting Firm · Level 4 (Hybrid)</div>
   </div>
-  <div class="meta">
-    <strong>Level 4 — Hybrid Hierarchical Workflow with EM Review</strong><br/>
-    <strong>Question:</strong> ${q}<br/>
-    <strong>Generated:</strong> ${new Date().toLocaleString()}
+  <div class="report-body">
+    ${document.getElementById("report-output").innerHTML}
   </div>
-  ${document.getElementById("report-output").innerHTML}
+  <div class="report-footer">
+    Client question: ${q} · Generated ${new Date().toLocaleString()}
+  </div>
   <script>window.onload=()=>{window.print();}<\/script>
 </body>
 </html>`);

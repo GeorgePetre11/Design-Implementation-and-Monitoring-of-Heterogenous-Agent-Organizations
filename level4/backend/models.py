@@ -43,6 +43,7 @@ class Competitor(BaseModel):
     name: str
     description: str
     market_position: str
+    service_overlap_notes: str = ""
     source: str = ""
 
 
@@ -50,15 +51,45 @@ class CustomerSegment(BaseModel):
     segment: str
     description: str
     size_estimate: str
+    relevance_to_client_service: str = ""
+
+
+class MarketTrend(BaseModel):
+    """A market trend with relevance justification (Level 4).
+
+    Accepts either a structured dict or a plain string (legacy) — the prompt
+    requests structured objects but old runs may still deliver strings.
+    """
+    trend: str
+    source: str = ""
+    relevance_to_client_service: str = ""
+
+
+class KeyFinding(BaseModel):
+    """A key research finding with relevance justification (Level 4)."""
+    finding: str
+    source: str = ""
+    relevance_to_client_service: str = ""
+
+
+class RegulatoryLandscape(BaseModel):
+    tax_regime: str = ""
+    labor_law: str = ""
+    data_protection: str = ""
+    business_registration: str = ""
 
 
 class MarketAnalysis(BaseModel):
     market_overview: str
     market_size_and_growth: str
     key_competitors: list[Competitor]
-    market_trends: list[str]
+    # market_trends and key_findings remain list[str]-compatible for backward
+    # compatibility; the prompt now asks for structured entries but the
+    # orchestrator doesn't re-validate, so we keep types permissive.
+    market_trends: list
     customer_segments: list[CustomerSegment]
-    key_findings: list[str]
+    regulatory_landscape: RegulatoryLandscape | None = None
+    key_findings: list
     sources: list[str] = []
 
 
@@ -83,12 +114,15 @@ class RevenueProjection(BaseModel):
 
 class FinancialAnalysis(BaseModel):
     executive_summary: str
+    revenue_model_type: str = ""            # one_time | recurring_contract | hybrid
+    revenue_model_justification: str = ""
     data_inputs_used: str = ""
     cost_estimates: list[CostEstimate]
     revenue_projections: list[RevenueProjection]
     roi_analysis: str
     break_even_timeline: str
     sensitivity_analysis: str
+    cost_per_employee_warning: str = ""
     key_financial_risks: list[str]
 
 

@@ -119,7 +119,7 @@ async def get_service(service: str):
 
 @app.post("/api/services/{service}/start")
 async def start_service(service: str):
-    return await _run_compose(service, ["up", "-d"])
+    return await _run_compose(service, ["up", "-d", "--build"])
 
 
 @app.post("/api/services/{service}/stop")
@@ -131,7 +131,7 @@ async def stop_service(service: str):
 async def start_all():
     results = {}
     for name in SERVICES:
-        results[name] = await _run_compose(name, ["up", "-d"])
+        results[name] = await _run_compose(name, ["up", "-d", "--build"])
     return results
 
 

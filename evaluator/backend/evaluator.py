@@ -1,15 +1,21 @@
 """
-Evaluator Agent -- Kimi K2.5 via Moonshot's OpenAI-compatible API.
+Evaluator Agent -- Gemini 2.5 via Google AI Studio's OpenAI-compatible API.
 
 Independent quality judge for the AI Consulting Firm multi-agent system.
 The Evaluator receives ONLY a client question and a finished consulting
 report and produces a structured 6-criterion scorecard. It cannot modify
 the report, search the web, call tools, or talk to other agents.
 
+Tuned for the Google AI Studio FREE tier, which enforces tight per-minute
+and per-day request limits (e.g. ~10 RPM for gemini-2.5-flash). Retries
+use long exponential backoff and respect any Retry-After hint returned by
+the API.
+
 See README_evaluator_agent.md for the full specification.
 """
 import json
 import os
+import random
 import re
 import time
 
@@ -20,8 +26,10 @@ from models import EvaluationScorecard
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
-DEFAULT_BASE_URL = "https://api.moonshot.ai/v1"
-DEFAULT_MODEL = "kimi-k2.5"
+# Google AI Studio exposes an OpenAI-compatible endpoint, so we can keep the
+# OpenAI SDK and only swap base_url + model + key.
+DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+DEFAULT_MODEL = "gemini-2.5-flash"
 
 REQUIRED_CRITERIA = (
     "completeness",
@@ -128,14 +136,20 @@ fences, no preamble, no text outside the JSON:
 # Agent
 # ---------------------------------------------------------------------------
 class EvaluatorAgent:
-    """Independent quality judge backed by Kimi K2.5."""
+    """Independent quality judge backed by Gemini 2.5 (Google AI Studio)."""
 
     name = "evaluator"
     display_name = "Evaluator"
     role = "Independent Quality Judge"
 
-    MAX_RETRIES = 3
-    RETRY_DELAY = 5  # seconds (multiplied by attempt number)
+    # Retry budget tuned for Google AI Studio's FREE tier: a single
+    # /evaluate call may legitimately wait through several 429s if the
+    # per-minute quota was just consumed (10 RPM for gemini-2.5-flash,
+    # 5 RPM for gemini-2.5-pro). Daily quota exhaustion is NOT retried.
+    MAX_RETRIES = 5
+    RATE_LIMIT_BASE_DELAY = 12.0     # seconds; first 429 waits this long
+    RATE_LIMIT_MAX_DELAY = 90.0      # cap any single backoff
+    PARSE_RETRY_DELAY = 2.0          # short pause between schema-failure retries
 
     def __init__(
         self,
@@ -143,18 +157,25 @@ class EvaluatorAgent:
         base_url: str | None = None,
         model: str | None = None,
         temperature: float = 0.1,
-        max_tokens: int = 2000,
+        max_tokens: int = 4000,
     ):
-        self.api_key = api_key or os.getenv("EVALUATOR_API_KEY", "")
+        # Accept GEMINI_API_KEY / GOOGLE_API_KEY as aliases so the standard
+        # Google AI Studio env-var names also work.
+        self.api_key = (
+            api_key
+            or os.getenv("EVALUATOR_API_KEY")
+            or os.getenv("GEMINI_API_KEY")
+            or os.getenv("GOOGLE_API_KEY")
+            or ""
+        )
         self.base_url = base_url or os.getenv("EVALUATOR_BASE_URL", DEFAULT_BASE_URL)
         self.model = model or os.getenv("EVALUATOR_MODEL", DEFAULT_MODEL)
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-        # The OpenAI SDK requires a non-empty api_key string, but local
-        # OpenAI-compatible servers (e.g. Ollama at http://localhost:11434/v1)
-        # ignore its value. Fall back to a placeholder so the client can be
-        # constructed without a real key.
+        # Google AI Studio's OpenAI-compat endpoint requires a real API key,
+        # but we still allow constructing the client without one so /health
+        # can report available=false instead of crashing at import time.
         self._client = OpenAI(
             api_key=self.api_key or "not-needed",
             base_url=self.base_url,
@@ -163,7 +184,9 @@ class EvaluatorAgent:
     # ------------------------------------------------------------------
     @property
     def available(self) -> bool:
-        return True
+        # Google AI Studio always requires a real API key (unlike e.g. a
+        # local Ollama proxy), so without one the evaluator cannot serve.
+        return bool(self.api_key)
 
     # ------------------------------------------------------------------
     def evaluate(self, question: str | None, report: str) -> dict:
@@ -171,8 +194,15 @@ class EvaluatorAgent:
 
         Raises ConnectionError if the API is unreachable, ValueError if the
         model fails to produce a valid scorecard after MAX_RETRIES attempts,
-        and RuntimeError if the agent has no API key configured.
+        and RuntimeError if the agent has no API key configured or has
+        exhausted Google AI Studio's daily free-tier quota.
         """
+        if not self.api_key:
+            raise RuntimeError(
+                "Evaluator has no API key configured. Set EVALUATOR_API_KEY "
+                "(or GEMINI_API_KEY) to a Google AI Studio key."
+            )
+
         last_err: Exception | None = None
         for attempt in range(self.MAX_RETRIES):
             try:
@@ -184,14 +214,23 @@ class EvaluatorAgent:
 
             except RateLimitError as e:
                 last_err = e
+                if self._is_daily_quota_exhaustion(e):
+                    raise RuntimeError(
+                        "Gemini daily free-tier quota exhausted. Retry "
+                        f"tomorrow or upgrade the key. ({e})"
+                    )
                 if attempt < self.MAX_RETRIES - 1:
-                    time.sleep(self.RETRY_DELAY * (attempt + 1))
+                    delay = self._rate_limit_backoff(e, attempt)
+                    time.sleep(delay)
                     continue
                 raise
 
             except (json.JSONDecodeError, ValueError) as e:
                 last_err = e
                 if attempt < self.MAX_RETRIES - 1:
+                    # Brief pause so a flaky JSON response doesn't immediately
+                    # burn another RPM slot on the free tier.
+                    time.sleep(self.PARSE_RETRY_DELAY)
                     continue
                 raise ValueError(
                     f"Evaluator failed to produce a valid scorecard after "
@@ -199,10 +238,92 @@ class EvaluatorAgent:
                 )
 
             except APIError as e:
-                raise ConnectionError(f"Moonshot API error: {e}")
+                # Some Gemini 429s arrive as a generic APIError rather than
+                # RateLimitError depending on SDK version -- detect and
+                # retry those too.
+                if self._looks_like_rate_limit(e):
+                    last_err = e
+                    if self._is_daily_quota_exhaustion(e):
+                        raise RuntimeError(
+                            "Gemini daily free-tier quota exhausted. Retry "
+                            f"tomorrow or upgrade the key. ({e})"
+                        )
+                    if attempt < self.MAX_RETRIES - 1:
+                        time.sleep(self._rate_limit_backoff(e, attempt))
+                        continue
+                raise ConnectionError(f"Gemini API error: {e}")
 
         # Defensive -- the loop above always returns or raises
         raise RuntimeError(f"Evaluator exhausted retries: {last_err}")
+
+    # ------------------------------------------------------------------
+    def _rate_limit_backoff(self, err: Exception, attempt: int) -> float:
+        """Pick a sleep duration after a 429.
+
+        Prefers the server's Retry-After / RetryInfo hint when present;
+        otherwise falls back to exponential backoff with jitter. Capped
+        at RATE_LIMIT_MAX_DELAY to avoid a single client tying up a
+        worker for minutes.
+        """
+        hint = self._extract_retry_after(err)
+        if hint is not None:
+            # Add a small buffer so we don't race the quota window edge.
+            return min(self.RATE_LIMIT_MAX_DELAY, hint + 1.0)
+
+        base = self.RATE_LIMIT_BASE_DELAY * (2 ** attempt)
+        jitter = random.uniform(0, 2.0)
+        return min(self.RATE_LIMIT_MAX_DELAY, base + jitter)
+
+    @staticmethod
+    def _extract_retry_after(err: Exception) -> float | None:
+        """Best-effort parse of Retry-After / google.rpc.RetryInfo from a
+        Gemini error payload. Returns seconds or None."""
+        # 1. HTTP Retry-After header on the response object
+        resp = getattr(err, "response", None)
+        if resp is not None:
+            headers = getattr(resp, "headers", None) or {}
+            ra = headers.get("retry-after") or headers.get("Retry-After")
+            if ra:
+                try:
+                    return float(ra)
+                except (TypeError, ValueError):
+                    pass
+
+        # 2. Google's RetryInfo embedded in the JSON body, e.g.
+        #    {"error":{"details":[{"@type":".../RetryInfo","retryDelay":"34s"}]}}
+        body = getattr(err, "body", None) or {}
+        try:
+            details = body.get("error", {}).get("details", []) if isinstance(body, dict) else []
+            for d in details:
+                if isinstance(d, dict) and "retryDelay" in d:
+                    s = str(d["retryDelay"]).rstrip("s")
+                    return float(s)
+        except (AttributeError, TypeError, ValueError):
+            pass
+
+        # 3. Last-ditch regex on the stringified error
+        m = re.search(r"retryDelay['\"]?\s*[:=]\s*['\"]?(\d+(?:\.\d+)?)s", str(err))
+        if m:
+            return float(m.group(1))
+        return None
+
+    @staticmethod
+    def _looks_like_rate_limit(err: Exception) -> bool:
+        status = getattr(err, "status_code", None)
+        if status == 429:
+            return True
+        return "rate" in str(err).lower() and "limit" in str(err).lower()
+
+    @staticmethod
+    def _is_daily_quota_exhaustion(err: Exception) -> bool:
+        # Google AI Studio free tier surfaces daily exhaustion as a 429 whose
+        # body references "PerDay" quota metrics; per-minute exhaustion is
+        # safe to retry, per-day is not.
+        text = str(err)
+        body = getattr(err, "body", None)
+        if isinstance(body, dict):
+            text += " " + json.dumps(body)
+        return "PerDay" in text or "per day" in text.lower()
 
     # ------------------------------------------------------------------
     def _call_api(self, question: str | None, report: str) -> str:
@@ -229,15 +350,39 @@ class EvaluatorAgent:
                 {"role": "user", "content": user_message},
             ],
         )
-        # Ask for strict JSON when the backend supports it; fall back silently
-        # if the server rejects the parameter (older OpenAI-compat endpoints).
+
+        # Gemini 2.5 has "thinking" enabled by default and counts thinking
+        # tokens against max_tokens, so a rubric scorecard often gets
+        # truncated mid-string before the JSON closes. Disable thinking for
+        # this call -- a structured 6-criterion scorecard does not need it.
+        # (extra_body is ignored by non-Gemini OpenAI-compat backends.)
+        gemini_extra_body = {
+            "extra_body": {
+                "google": {
+                    "thinking_config": {
+                        "thinking_budget": 0,
+                        "include_thoughts": False,
+                    }
+                }
+            }
+        }
+
+        # Ask for strict JSON + disable thinking when the backend supports
+        # them; fall back gracefully on older OpenAI-compat endpoints.
         try:
             response = self._client.chat.completions.create(
                 response_format={"type": "json_object"},
+                extra_body=gemini_extra_body,
                 **kwargs,
             )
         except (APIError, TypeError):
-            response = self._client.chat.completions.create(**kwargs)
+            try:
+                response = self._client.chat.completions.create(
+                    response_format={"type": "json_object"},
+                    **kwargs,
+                )
+            except (APIError, TypeError):
+                response = self._client.chat.completions.create(**kwargs)
         return response.choices[0].message.content or ""
 
     # ------------------------------------------------------------------

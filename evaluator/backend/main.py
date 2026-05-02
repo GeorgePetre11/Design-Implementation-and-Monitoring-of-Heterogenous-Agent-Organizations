@@ -2,8 +2,8 @@
 Evaluator -- FastAPI backend.
 
 Standalone service that scores a finished consulting report on six criteria
-using Kimi K2.5 via Moonshot's OpenAI-compatible API. Other levels (L2-L4)
-call this service after their own pipelines complete.
+using Gemini 2.5 via Google AI Studio's OpenAI-compatible API. Other levels
+(L2-L4) call this service after their own pipelines complete.
 
 Endpoints:
   POST /evaluate   -- score a {question, report} pair
@@ -20,7 +20,7 @@ import monitor
 from evaluator import DEFAULT_MODEL, EvaluatorAgent
 from models import EvaluationRequest
 
-app = FastAPI(title="AI Consulting Firm -- Evaluator (Kimi K2.5)")
+app = FastAPI(title="AI Consulting Firm -- Evaluator (Gemini 2.5)")
 
 app.add_middleware(
     CORSMiddleware,

@@ -49,7 +49,7 @@ EVALUATOR_TIMEOUT = 180         # seconds
 
 
 def _call_evaluator(question: str, report: str, session_id: str) -> dict:
-    """POST to the Kimi K2.5 evaluator service and return the scorecard dict."""
+    """POST to the Gemini 2.5 evaluator service and return the scorecard dict."""
     response = requests.post(
         f"{EVALUATOR_URL}/evaluate",
         json={"question": question, "report": report, "level": 4, "session_id": session_id},
@@ -186,6 +186,38 @@ def _validate_budget(question: str, financial_data: dict) -> dict | None:
         }
 
 
+REQUIRED_SCENARIOS = {"conservative", "moderate", "aggressive"}
+
+
+def _financial_gaps(financial_data: dict) -> str:
+    """Return a feedback string listing missing required FA content, or '' if OK."""
+    fa = financial_data.get("financial_analysis", financial_data) or {}
+    gaps: list[str] = []
+
+    projections = fa.get("revenue_projections") or []
+    scenarios_present = {
+        str(p.get("scenario", "")).strip().lower() for p in projections if isinstance(p, dict)
+    }
+    missing = REQUIRED_SCENARIOS - scenarios_present
+    if missing:
+        gaps.append(
+            "revenue_projections must contain exactly three scenarios "
+            "(Conservative, Moderate, Aggressive). Missing: "
+            + ", ".join(sorted(missing))
+        )
+
+    if not str(fa.get("sensitivity_analysis", "")).strip():
+        gaps.append("sensitivity_analysis is empty -- required field.")
+
+    if not str(fa.get("revenue_model_type", "")).strip():
+        gaps.append(
+            "revenue_model_type is missing. Choose one_time, recurring_contract, "
+            "or hybrid based on the client context and justify it."
+        )
+
+    return "\n- ".join(["Schema-level gaps detected:"] + gaps) if gaps else ""
+
+
 def _sse(data: dict) -> str:
     """Format a dict as an SSE data line."""
     return f"data: {json.dumps(data)}\n\n"
@@ -233,7 +265,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
         {"name": fa.name, "display_name": fa.display_name, "model": fa.model},
         {"name": ra.name, "display_name": ra.display_name, "model": ra.model},
         {"name": sc.name, "display_name": sc.display_name, "model": sc.model},
-        {"name": "evaluator", "display_name": "Evaluator", "model": "kimi-k2.5"},
+        {"name": "evaluator", "display_name": "Evaluator", "model": "gemini-2.5-flash"},
     ]
 
     state.reset_state(session_id, question, agent_configs)
@@ -450,6 +482,27 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
         yield _sse({"type": "error", "agent": fa.name, "error": str(exc)})
         return
 
+    # -- Schema-level guard: ensure 3 scenarios + sensitivity analysis --
+    # If the FA omitted content the SC is required to cite, trigger a
+    # one-shot Python-driven revision with concrete feedback. This acts
+    # as a safety net behind the EM review.
+    fa_gaps = _financial_gaps(financial_data)
+    if fa_gaps and revisions.get(fa.name, {}).get("revision_count", 0) == 0:
+        yield _sse({"type": "revision_start", "agent": fa.name, "feedback": fa_gaps, "source": "schema_guard"})
+        state.update_agent(fa.name, "revising")
+        monitor.log_event(session_id, "revision_start", agent_name=fa.display_name, data={"feedback": fa_gaps, "source": "schema_guard"})
+        try:
+            t0_rev = time.time()
+            financial_data = _run_with_retries(
+                lambda: fa.run(question, plan_data, research_data, revision_feedback=fa_gaps)
+            )
+            elapsed_rev = round(time.time() - t0_rev, 2)
+            revisions[fa.name] = {"was_revised": True, "feedback": fa_gaps, "revision_count": 1, "source": "schema_guard"}
+            state.update_agent(fa.name, "approved", elapsed=elapsed_rev, output=financial_data)
+            yield _sse({"type": "agent_output", "agent": fa.name, "output": financial_data, "elapsed": elapsed_rev, "revised": True})
+        except Exception as exc:
+            monitor.log_event(session_id, "agent_error", agent_name=fa.display_name, data={"error": str(exc), "source": "schema_guard"})
+
     # -- Budget validation (Python-level, not LLM-dependent) --
     budget_check = _validate_budget(question, financial_data)
     if budget_check:
@@ -593,7 +646,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     yield _sse({"type": "agent_complete", "agent": sc.name, "elapsed": elapsed})
 
     # ------------------------------------------------------------------
-    # Phase 6: Evaluator (Kimi K2.5) -- score, optionally trigger SC revision
+    # Phase 6: Evaluator (Gemini 2.5) -- score, optionally trigger SC revision
     # ------------------------------------------------------------------
     scorecard_final: dict | None = None
     total_eval_elapsed = 0.0
@@ -603,13 +656,13 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
         yield _sse({
             "type": "evaluator_start",
             "agent": "evaluator",
-            "display_name": "Evaluator (Kimi K2.5)",
+            "display_name": "Evaluator (Gemini 2.5)",
             "round": round_num,
         })
         monitor.log_event(
             session_id, "evaluator_start",
             agent_name="Evaluator",
-            data={"round": round_num, "model": "kimi-k2.5"},
+            data={"round": round_num, "model": "gemini-2.5-flash"},
         )
 
         t0 = time.time()

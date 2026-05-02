@@ -10,8 +10,6 @@ services:
       - PROJECT_ROOT=${PROJECT_ROOT}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - EVALUATOR_API_KEY=${EVALUATOR_API_KEY:-}
-      - EVALUATOR_BASE_URL=${EVALUATOR_BASE_URL:-}
-      - EVALUATOR_MODEL=${EVALUATOR_MODEL:-}
     volumes:
       # Docker-outside-of-docker: give the portal backend access to the host
       # Docker daemon so it can start/stop the level stacks.
