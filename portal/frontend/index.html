@@ -483,8 +483,19 @@
 <div class="toast-container" id="toast-container"></div>
 
 <script>
-const PORTAL_API = "http://localhost:8000";
+const H = window.location.hostname;
+const PORTAL_API = `http://${H}:8000`;
 let portalBackendUp = false;
+
+/* Rewrite all hardcoded localhost URLs to use current hostname */
+(function() {
+  document.querySelectorAll("[data-health]").forEach(el => {
+    el.dataset.health = el.dataset.health.replace("localhost", H);
+  });
+  document.querySelectorAll("a[href*='localhost']").forEach(a => {
+    a.href = a.href.replace("localhost", H);
+  });
+})();
 
 /* -------- Toasts -------- */
 function toast(title, body, kind) {

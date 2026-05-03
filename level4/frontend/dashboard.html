@@ -245,8 +245,8 @@
 </div>
 
 <script>
-const API = "http://localhost:8004";
-const WS_URL = "ws://localhost:8004/ws";
+const API = `http://${window.location.hostname}:8004`;
+const WS_URL = `ws://${window.location.hostname}:8004/ws`;
 
 const AGENTS = [
   { key: "engagement_manager",  icon: "EM", label: "Engagement Manager",  color: "#a78bfa" },

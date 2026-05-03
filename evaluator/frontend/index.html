@@ -171,7 +171,7 @@
   <p>Drop a finished consulting report to get a 6-criterion scorecard</p>
   <div class="badges">
     <span class="badge">Gemini 2.5 · Independent Judge</span>
-    <a class="badge api" href="http://localhost:8005/docs" target="_blank">API Docs</a>
+    <a class="badge api" id="api-docs-link" href="#" target="_blank">API Docs</a>
   </div>
 </header>
 
@@ -220,7 +220,8 @@
 </script>
 
 <script>
-const API = "http://localhost:8005";
+const API = `http://${window.location.hostname}:8005`;
+document.getElementById("api-docs-link").href = API + "/docs";
 
 const dropzone   = document.getElementById("dropzone");
 const fileInput  = document.getElementById("file-input");
