@@ -319,6 +319,17 @@ class EvaluatorAgent:
         # Google AI Studio free tier surfaces daily exhaustion as a 429 whose
         # body references "PerDay" quota metrics; per-minute exhaustion is
         # safe to retry, per-day is not.
+        #
+        # IMPORTANT: The quota ID name (e.g. "GenerateRequestsPerDay...")
+        # contains "PerDay" even for per-minute throttles. We must also
+        # check that the retryDelay is long (>120s) or that there is NO
+        # retryDelay hint (true daily exhaustion typically omits it or
+        # gives a very long delay). A short retryDelay (e.g. 52s) means
+        # it's a per-minute rate limit, not daily exhaustion.
+        retry_hint = EvaluatorAgent._extract_retry_after(err)
+        if retry_hint is not None and retry_hint < 120:
+            return False
+
         text = str(err)
         body = getattr(err, "body", None)
         if isinstance(body, dict):
@@ -369,18 +380,26 @@ class EvaluatorAgent:
 
         # Ask for strict JSON + disable thinking when the backend supports
         # them; fall back gracefully on older OpenAI-compat endpoints.
+        # IMPORTANT: Only fall back on TypeError (unsupported kwarg) or
+        # non-rate-limit APIErrors. Rate-limit (429) errors must propagate
+        # so the outer retry loop can handle them with proper backoff
+        # instead of burning extra quota slots on fallback attempts.
         try:
             response = self._client.chat.completions.create(
                 response_format={"type": "json_object"},
                 extra_body=gemini_extra_body,
                 **kwargs,
             )
+        except (RateLimitError, KeyboardInterrupt):
+            raise
         except (APIError, TypeError):
             try:
                 response = self._client.chat.completions.create(
                     response_format={"type": "json_object"},
                     **kwargs,
                 )
+            except (RateLimitError, KeyboardInterrupt):
+                raise
             except (APIError, TypeError):
                 response = self._client.chat.completions.create(**kwargs)
         return response.choices[0].message.content or ""
