@@ -8,67 +8,67 @@ skinparam roundCorner 10
 
 title **Level 4 — Hybrid Hierarchical Organization**\n//Sequential pipeline + EM review after each agent (max 1 revision)//
 
-|#E3F2FD|Engagement Manager\n(qwen3:8b)|
+|#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
 start
 :Decompose question &\ncreate analysis plan;
 
-|#E8F5E9|Market Researcher\n(qwen3:14b)|
+|#E8F5E9|Market Researcher\n(qwen3.5:35b-a3b)|
 :Receive plan;
 :Produce market analysis\n(competitors, trends, segments);
 
-|#E3F2FD|Engagement Manager\n(qwen3:8b)|
+|#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
 :Review market analysis;
 if (Quality sufficient?) then (yes)
 else (no)
-  |#E8F5E9|Market Researcher\n(qwen3:14b)|
+  |#E8F5E9|Market Researcher\n(qwen3.5:35b-a3b)|
   :Revise with EM feedback;
-  |#E3F2FD|Engagement Manager\n(qwen3:8b)|
+  |#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
   :Accept revised output;
 endif
 
-|#FFF3E0|Financial Analyst\n(qwen3:14b)|
+|#FFF3E0|Financial Analyst\n(gpt-oss:20b)|
 :Receive plan + market analysis;
 :Produce financial analysis\n(costs, revenue, ROI, break-even);
 
-|#E3F2FD|Engagement Manager\n(qwen3:8b)|
+|#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
 :Review financial analysis;
 if (Quality sufficient?) then (yes)
 else (no)
-  |#FFF3E0|Financial Analyst\n(qwen3:14b)|
+  |#FFF3E0|Financial Analyst\n(gpt-oss:20b)|
   :Revise with EM feedback;
-  |#E3F2FD|Engagement Manager\n(qwen3:8b)|
+  |#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
   :Accept revised output;
 endif
 
-|#FFEBEE|Risk Analyst\n(qwen3:14b)|
+|#FFEBEE|Risk Analyst\n(qwen3.5:9b)|
 :Receive plan + market +\nfinancial analyses;
 :Produce risk assessment\n(regulatory, market, operational);
 
-|#E3F2FD|Engagement Manager\n(qwen3:8b)|
+|#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
 :Review risk assessment;
 if (Quality sufficient?) then (yes)
 else (no)
-  |#FFEBEE|Risk Analyst\n(qwen3:14b)|
+  |#FFEBEE|Risk Analyst\n(qwen3.5:9b)|
   :Revise with EM feedback;
-  |#E3F2FD|Engagement Manager\n(qwen3:8b)|
+  |#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
   :Accept revised output;
 endif
 
-|#F3E5F5|Strategy Consultant\n(qwen3.5:27b)|
+|#F3E5F5|Strategy Consultant\n(gemma4:31b)|
 :Receive all analyses;
 :Synthesize into final consulting\nreport with options & tradeoffs;
 
-|#E3F2FD|Engagement Manager\n(qwen3:8b)|
+|#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
 :Review final report;
 if (Quality sufficient?) then (yes)
 else (no)
-  |#F3E5F5|Strategy Consultant\n(qwen3.5:27b)|
+  |#F3E5F5|Strategy Consultant\n(gemma4:31b)|
   :Revise with EM feedback;
-  |#E3F2FD|Engagement Manager\n(qwen3:8b)|
+  |#E3F2FD|Engagement Manager\n(qwen3.5:9b)|
   :Accept revised report;
 endif
 
-|#FFFDE7|Evaluator\n(Claude Opus 4.6 — Anthropic API)|
+|#FFFDE7|Evaluator\n(gemini-2.5-flash — Google AI Studio)|
 :Score on 6-criterion rubric;
 :Produce evaluation scorecard;
 stop
@@ -80,7 +80,7 @@ note right
   * Max 1 revision per agent
   * Cumulative data routing (each agent gets all prior outputs)
   * No cross-agent iteration (EM is sole quality gate)
-  * Local inference (Ollama) except Evaluator (Anthropic API)
+  * Local inference (Ollama) except Evaluator (Google AI Studio)
 end note
 
 @enduml

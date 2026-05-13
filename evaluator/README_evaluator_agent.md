@@ -2,7 +2,7 @@
 
 Independent quality judge for the AI Consulting Firm multi-agent system.
 
-Model: **Kimi K2.5** (Moonshot AI) — cloud API + Ollama proxy
+Model: **Gemini 2.5 Flash** (Google AI Studio) — OpenAI-compatible cloud API
 
 ---
 
@@ -246,43 +246,40 @@ Respond with ONLY a valid JSON object matching this structure. No markdown fence
 
 ---
 
-## Model: Kimi K2.5 via Cloud API
+## Model: Gemini 2.5 Flash via Google AI Studio
 
-### Why Kimi K2.5 for the Evaluator
+### Why Gemini 2.5 Flash for the Evaluator
 
-Kimi K2.5 is a frontier-class model (1T total parameters, 32B active per token) with strong analytical reasoning, multilingual support, and an OpenAI-compatible API. For the Evaluator role specifically:
+Gemini 2.5 Flash is Google's fast reasoning model with an OpenAI-compatible API endpoint. For the Evaluator role specifically:
 
-- **Independent provider**: Adds Moonshot AI as a distinct provider in the heterogeneity matrix (alongside Alibaba/Qwen for local agents, and potentially OpenAI/Anthropic). This strengthens the thesis argument about heterogeneous model providers.
-- **Strong reasoning**: Scores 96.1% on AIME 2025 and 76.8% on SWE-Bench — sufficient analytical depth for rubric-based evaluation.
-- **256K context window**: Can evaluate even very long consulting reports without truncation.
-- **Cost**: $0.60/M input tokens, $2.50/M output tokens on the official API. A single evaluation (~4K input + ~1K output) costs roughly $0.005. Running 100 evaluations across all experiments costs about $0.50.
-- **Free access available**: NVIDIA NIM provides free API access; kimi.com offers ~30-50 free messages/day.
+- **Independent provider**: Adds Google as a distinct provider in the heterogeneity matrix (alongside Alibaba/Qwen, DeepSeek, GPT-OSS, and Gemma for local agents). This strengthens the thesis argument about heterogeneous model providers.
+- **Strong reasoning**: Excellent analytical depth for rubric-based evaluation with native thinking capabilities (disabled for structured JSON output).
+- **Free tier**: Google AI Studio provides a free tier (~10 RPM for gemini-2.5-flash, ~5 RPM for gemini-2.5-pro).
+- **Cost**: Free tier is sufficient for the thesis experiments. Paid tier also available.
+- **OpenAI SDK compatible**: Uses the standard OpenAI Python SDK with only a base URL swap — minimal code changes.
 
-### Access Options (cheapest to most expensive)
+### Access
 
 | Method | Cost | Rate Limits | Best For |
 |--------|------|-------------|----------|
-| **NVIDIA NIM** | Free | No published limits | Development, testing |
-| **kimi.com web chat** | Free | ~30-50 msgs/day | Manual testing, qualitative checks |
-| **Moonshot API (Tier 0)** | $1 min recharge | 3 RPM, 1 concurrent | Light experiments |
-| **Moonshot API (Tier 1)** | $10 cumulative | 200 RPM, 50 concurrent | Production pipeline |
-| **OpenRouter** | ~$0.38/M in, $1.72/M out | Varies by plan | If Moonshot is unreachable from RO |
+| **Google AI Studio (Free)** | Free | ~10 RPM (flash), ~5 RPM (pro) | Development, experiments |
+| **Google AI Studio (Paid)** | Pay-per-use | Higher limits | Production pipeline |
 
-### Recommended: Moonshot Official API
+### Recommended: Google AI Studio Free Tier
 
-For the production pipeline, use Moonshot's official API at `https://api.moonshot.ai/v1`. A $10 recharge unlocks Tier 1 (200 RPM, 50 concurrent requests) and should cover the entire thesis.
+For the thesis experiments, use Google AI Studio's free tier at `https://generativelanguage.googleapis.com/v1beta/openai/`. The free tier rate limits (~10 RPM) are sufficient — the evaluator includes exponential backoff retry logic with Retry-After hint parsing.
 
 ---
 
 ## Integration
 
-### Option A — Direct API Call (Recommended for Production)
+### Direct API Call (via OpenAI SDK)
 
-The Moonshot API is OpenAI SDK-compatible. Drop-in replacement:
+Google AI Studio exposes an OpenAI-compatible endpoint, so we use the standard OpenAI Python SDK:
 
 ```python
 """
-Evaluator Agent — calls Kimi K2.5 via Moonshot's OpenAI-compatible API.
+Evaluator Agent — calls Gemini 2.5 Flash via Google AI Studio's OpenAI-compatible API.
 """
 import json
 from openai import OpenAI
@@ -290,9 +287,9 @@ from openai import OpenAI
 EVALUATOR_SYSTEM_PROMPT = """<paste the full system prompt from above>"""
 
 class EvaluatorAgent:
-    def __init__(self, api_key: str, base_url: str = "https://api.moonshot.ai/v1"):
+    def __init__(self, api_key: str, base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"):
         self.client = OpenAI(api_key=api_key, base_url=base_url)
-        self.model = "kimi-k2.5"
+        self.model = "gemini-2.5-flash"
 
     def evaluate(self, client_question: str, report: str) -> dict:
         """Score a consulting report on the 6-criterion rubric."""
@@ -303,7 +300,8 @@ class EvaluatorAgent:
 
         response = self.client.chat.completions.create(
             model=self.model,
-            temperature=0.1,  # Low temp for consistent scoring
+            temperature=0.1,
+            response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": EVALUATOR_SYSTEM_PROMPT},
                 {"role": "user", "content": user_message},
@@ -311,11 +309,9 @@ class EvaluatorAgent:
         )
 
         raw = response.choices[0].message.content.strip()
-        # Strip markdown fences if the model wraps output
         raw = raw.removeprefix("```json").removesuffix("```").strip()
         scorecard = json.loads(raw)
 
-        # Validate overall_score matches criterion average
         scores = [v["score"] for v in scorecard["evaluation"].values()]
         expected_avg = round(sum(scores) / len(scores), 1)
         scorecard["overall_score"] = expected_avg
@@ -323,110 +319,7 @@ class EvaluatorAgent:
         return scorecard
 ```
 
-### Option B — Via Ollama Proxy (for unified local/cloud interface)
-
-If your orchestrator routes all LLM calls through Ollama, you can proxy Kimi K2.5 cloud requests through Ollama using a custom model that forwards to the API. This keeps a uniform `ollama.chat()` interface across local and cloud models.
-
-**Create a Modelfile that proxies to the cloud:**
-
-This approach uses a lightweight local wrapper. Your orchestrator calls Ollama normally, and for the evaluator model, the request is forwarded to the Moonshot API.
-
-**Option B1 — LiteLLM as a unified proxy (recommended):**
-
-LiteLLM provides a single OpenAI-compatible endpoint that routes to any provider:
-
-```bash
-pip install litellm
-```
-
-```python
-"""
-Evaluator Agent — calls Kimi K2.5 through LiteLLM for unified routing.
-Works alongside Ollama-hosted local models in the same pipeline.
-"""
-import json
-import litellm
-
-EVALUATOR_SYSTEM_PROMPT = """<paste the full system prompt from above>"""
-
-class EvaluatorAgent:
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        # LiteLLM model string for Moonshot's Kimi K2.5
-        self.model = "openai/kimi-k2.5"  # "openai/" prefix = OpenAI-compatible endpoint
-        self.api_base = "https://api.moonshot.ai/v1"
-
-    def evaluate(self, client_question: str, report: str) -> dict:
-        user_message = (
-            f"## Original Client Question\n{client_question}\n\n"
-            f"## Consulting Report to Evaluate\n{report}"
-        )
-
-        response = litellm.completion(
-            model=self.model,
-            api_key=self.api_key,
-            api_base=self.api_base,
-            temperature=0.1,
-            messages=[
-                {"role": "system", "content": EVALUATOR_SYSTEM_PROMPT},
-                {"role": "user", "content": user_message},
-            ],
-        )
-
-        raw = response.choices[0].message.content.strip()
-        raw = raw.removeprefix("```json").removesuffix("```").strip()
-        return json.loads(raw)
-```
-
-**Option B2 — NVIDIA NIM for free access:**
-
-```python
-# Same code as Option A, just change base_url and api_key
-client = OpenAI(
-    api_key="your-nvidia-nim-key",  # Free from build.nvidia.com
-    base_url="https://integrate.api.nvidia.com/v1"
-)
-# model = "moonshotai/kimi-k2.5"  # NVIDIA NIM model identifier
-```
-
-### Orchestrator Integration
-
-In your main pipeline orchestrator, the Evaluator is called last:
-
-```python
-"""
-Example: How the Evaluator fits into the Level 4 pipeline.
-"""
-async def run_pipeline(client_question: str):
-    # Step 1: Engagement Manager decomposes the question
-    plan = await engagement_manager.decompose(client_question)
-
-    # Step 2: Specialized agents produce their analyses
-    market_research = await market_researcher.analyze(plan.market_workstream)
-    financial_analysis = await financial_analyst.analyze(plan.financial_workstream)
-    risk_assessment = await risk_analyst.analyze(plan.risk_workstream)
-
-    # Step 3: Strategy Consultant synthesizes the final report
-    report = await strategy_consultant.synthesize(
-        market_research, financial_analysis, risk_assessment
-    )
-
-    # Step 4: Evaluator independently scores the report
-    evaluator = EvaluatorAgent(api_key=os.getenv("MOONSHOT_API_KEY"))
-    scorecard = evaluator.evaluate(
-        client_question=client_question,
-        report=report.content  # Only the final report text, nothing else
-    )
-
-    # Step 5: Log to monitoring database
-    await monitor.log_event(
-        event_type="evaluation_complete",
-        agent_name="evaluator",
-        data=scorecard
-    )
-
-    return report, scorecard
-```
+See `evaluator/backend/evaluator.py` for the full production implementation with exponential backoff retry logic, Retry-After hint parsing, daily quota detection, and JSON repair.
 
 ---
 
@@ -472,7 +365,7 @@ The Evaluator logs these events to the SQLite monitoring database:
 
 | Event Type | Data | When |
 |------------|------|------|
-| `evaluator_start` | `{session_id, level, model: "kimi-k2.5"}` | Evaluator receives the report |
+| `evaluator_start` | `{session_id, level, model: "gemini-2.5-flash"}` | Evaluator receives the report |
 | `evaluator_complete` | `{session_id, scorecard, tokens_used, latency_ms}` | Scorecard produced |
 | `evaluator_error` | `{session_id, error_message}` | API call failed or JSON parse error |
 | `evaluation_triggered_revision` | `{session_id, failing_criteria, iteration}` | L5 hybrid only: scores below threshold |
@@ -487,7 +380,7 @@ The Evaluator's scores are the **primary dependent variable** in all four thesis
 
 2. **Organizational Structure Comparison**: At L5, compare Evaluator scores across pipeline vs. hierarchical vs. hybrid to measure which workflow produces the highest-quality reports.
 
-3. **Heterogeneity Impact**: Compare Evaluator scores when all agents use the same model vs. when agents use different models (Qwen, DeepSeek, Kimi, etc.).
+3. **Heterogeneity Impact**: Compare Evaluator scores when all agents use the same model vs. when agents use different models (Qwen, DeepSeek, GPT-OSS, Gemma, Gemini, etc.).
 
 4. **Evaluator Consistency**: Run the same report through the Evaluator multiple times (e.g., 5 runs) to measure score variance. Compare Evaluator scores against human evaluation (your own assessment + the "Assessed" column from the L1 analysis document) to validate calibration.
 
@@ -502,15 +395,12 @@ The gap between L1 self-evaluation scores (8–9/10) and the independent Evaluat
 ### Environment Variables
 
 ```bash
-# Moonshot API (primary)
-EVALUATOR_API_KEY=sk-your-moonshot-key
-EVALUATOR_BASE_URL=https://api.moonshot.ai/v1
-EVALUATOR_MODEL=kimi-k2.5
+# Google AI Studio (primary — free tier)
+EVALUATOR_API_KEY=your-google-ai-studio-key
+EVALUATOR_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+EVALUATOR_MODEL=gemini-2.5-flash
 
-# Or NVIDIA NIM (free alternative)
-EVALUATOR_API_KEY=nvapi-your-nvidia-key
-EVALUATOR_BASE_URL=https://integrate.api.nvidia.com/v1
-EVALUATOR_MODEL=moonshotai/kimi-k2.5
+# Also accepts GEMINI_API_KEY or GOOGLE_API_KEY as aliases
 ```
 
 ### Agent Config (in your pipeline config)
@@ -519,12 +409,12 @@ EVALUATOR_MODEL=moonshotai/kimi-k2.5
 EVALUATOR_CONFIG = {
     "agent_name": "evaluator",
     "role": "Independent Quality Judge",
-    "model": os.getenv("EVALUATOR_MODEL", "kimi-k2.5"),
-    "provider": "moonshot",
-    "base_url": os.getenv("EVALUATOR_BASE_URL", "https://api.moonshot.ai/v1"),
+    "model": os.getenv("EVALUATOR_MODEL", "gemini-2.5-flash"),
+    "provider": "google_ai_studio",
+    "base_url": os.getenv("EVALUATOR_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"),
     "api_key": os.getenv("EVALUATOR_API_KEY"),
     "temperature": 0.1,
-    "max_tokens": 2000,
+    "max_tokens": 4000,
     "tools": [],  # No tools — pure evaluation
     "output_schema": "EvaluationScorecard",
     "restrictions": [
@@ -537,18 +427,18 @@ EVALUATOR_CONFIG = {
 }
 ```
 
-### Heterogeneity Matrix (Updated)
+### Heterogeneity Matrix (Level 4)
 
 | Agent | Model | Provider | Runs On |
 |-------|-------|----------|---------|
-| Engagement Manager | Qwen 3 8B | Alibaba (Ollama) | MacBook M3 |
-| Market Researcher | Qwen 3 14B | Alibaba (Ollama) | Ryzen 7 PC |
-| Financial Analyst | DeepSeek R1 14B | DeepSeek (Ollama) | Ryzen 7 PC |
-| Risk Analyst | Qwen 3 14B | Alibaba (Ollama) | Ryzen 7 PC |
-| Strategy Consultant | Qwen 3 32B | Alibaba (Ollama) | Ryzen 7 PC |
-| **Evaluator** | **Kimi K2.5** | **Moonshot AI (Cloud API)** | **Cloud** |
+| Engagement Manager | Qwen 3.5 9B | Alibaba (Ollama) | Local |
+| Market Researcher | Qwen 3.5 35B-A3B (MoE) | Alibaba (Ollama) | Local |
+| Financial Analyst | GPT-OSS 20B | Ollama | Local |
+| Risk Analyst | Qwen 3.5 9B | Alibaba (Ollama) | Local |
+| Strategy Consultant | Gemma 4 31B | Google (Ollama) | Local |
+| **Evaluator** | **Gemini 2.5 Flash** | **Google AI Studio (Cloud)** | **Cloud** |
 
-This gives the system **3 distinct model families** (Qwen, DeepSeek, Kimi) across **2 providers** (local Ollama, cloud Moonshot API) on **3 execution environments** (MacBook, Ryzen PC, cloud) — a strong heterogeneity story for the thesis.
+This gives the system **6 distinct model families** (Qwen 3.5, GPT-OSS, Gemma 4, Gemini) across **2 providers** (local Ollama, cloud Google AI Studio) — a strong heterogeneity story for the thesis.
 
 ---
 
@@ -581,7 +471,7 @@ class EvaluatorAgent:
                     continue
                 raise ValueError(f"Evaluator failed to produce valid JSON after {self.MAX_RETRIES} attempts: {e}")
             except APIError as e:
-                raise ConnectionError(f"Moonshot API error: {e}")
+                raise ConnectionError(f"Google AI Studio API error: {e}")
 
     def _validate_scorecard(self, scorecard: dict):
         """Ensure all 6 criteria are present and scores are in range."""

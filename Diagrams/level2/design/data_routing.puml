@@ -1,0 +1,50 @@
+@startuml l2_data_routing
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Level 2 — Data Routing**\n//Cumulative routing across 3 agents//
+
+left to right direction
+
+rectangle "Client Question" as input #F5F5F5
+
+rectangle "Engagement\nManager\n(qwen3:8b)" as em #E3F2FD
+rectangle "Market\nResearcher\n(qwen3:14b)" as mr #E8F5E9
+rectangle "Strategy\nConsultant\n(qwen3:32b)" as sc #F3E5F5
+rectangle "Evaluator\n(gemini-2.5-flash)" as ev #FFFDE7
+
+card "Analysis\nPlan" as plan #BBDEFB
+card "Market\nAnalysis" as mdata #C8E6C9
+card "Consulting\nReport" as report #E1BEE7
+card "Evaluation\nScorecard" as score #FFF9C4
+
+input --> em
+em --> plan
+
+plan --> mr
+mr --> mdata
+
+plan --> sc
+mdata --> sc
+sc --> report
+
+report --> ev
+ev --> score
+
+note as N1
+  **Level 2 Data Routing:**
+  ----
+  EM: sees client question only
+  MR: sees question + analysis plan
+  SC: sees question + plan + market analysis
+  Evaluator: sees question + consulting report
+  ----
+  //Each agent builds on prior outputs//
+  //No agent can modify prior outputs//
+end note
+
+@enduml

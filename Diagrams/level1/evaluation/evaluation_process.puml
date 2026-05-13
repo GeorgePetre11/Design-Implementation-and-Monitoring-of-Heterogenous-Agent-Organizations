@@ -1,0 +1,55 @@
+@startuml l1_evaluation
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 1 — Evaluation Process**
+
+start
+
+:Generic Agent produces\nconsulting report;
+note right
+  Report includes self-evaluation
+  (agent assesses its own work)
+end note
+
+:Self-evaluation embedded\nin report output;
+
+partition "Standalone Evaluator (Separate Service)" #FFFDE7 {
+  :Submit report to\nEvaluator service;
+  :Evaluator (gemini-2.5-flash)\nscores on 6-criterion rubric;
+  note right
+    **Criteria (1-10 each):**
+    * Completeness
+    * Accuracy
+    * Coherence
+    * Structure
+    * Actionability
+    * Critical Depth
+  end note
+  :Produce Evaluation\nScorecard JSON;
+}
+
+:Compare self-evaluation\nvs evaluator scores;
+note right
+  **Key comparison:**
+  How well does a single
+  unspecialized agent assess
+  its own quality?
+end note
+
+stop
+
+note bottom
+  **Level 1 Evaluation:**
+  * Self-evaluation (embedded in report)
+  * External evaluation (standalone Evaluator service)
+  * No revision capability — single pass only
+  * Serves as baseline for cross-level comparison
+end note
+
+@enduml

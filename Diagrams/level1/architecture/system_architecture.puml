@@ -1,0 +1,56 @@
+@startuml l1_system_architecture
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Level 1 — System Architecture**\n//Single Agent Baseline//
+
+package "Client Layer" #FFFDE7 {
+  actor "Client" as client
+  component "Web UI\n(index.html)" as ui
+}
+
+package "Backend (FastAPI)" #E8F5E9 {
+  component "POST /analyze\n(SSE Streaming)" as api
+  component "Agent Runner\n(Python)" as runner
+}
+
+package "Agent" #E3F2FD {
+  component "Generic Agent\n(No specialization)" as agent
+}
+
+package "LLM Provider" #FFF3E0 {
+  component "Ollama\n(Local)" as ollama
+  note bottom of ollama
+    **Model:** qwen2.5:14b
+    Single model handles
+    everything end-to-end
+  end note
+}
+
+package "Monitoring" #F3E5F5 {
+  database "SQLite\nEvents" as db
+}
+
+client --> ui
+ui --> api : "HTTP POST\n(question)"
+api --> runner
+runner --> agent
+agent ..> ollama : "qwen2.5:14b"
+api --> ui : "SSE stream\n(report tokens)"
+runner --> db : "log events"
+
+note bottom
+  **Level 1 Architecture:**
+  * No orchestrator — direct agent call
+  * No Pydantic schemas — free-form output
+  * No tools — agent uses only its training data
+  * SSE streaming for real-time report display
+  * Self-evaluation embedded in the report
+end note
+
+@enduml

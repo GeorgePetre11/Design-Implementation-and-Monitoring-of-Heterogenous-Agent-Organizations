@@ -22,7 +22,7 @@ start
 :Output: Consulting Report;
 
 |#FFFDE7|Stage 4|
-:<<Evaluator>>\n**qwen3:14b** (Ollama)\n\nScore on 6-criterion rubric;
+:<<Evaluator>>\n**gemini-2.5-flash** (Google AI Studio)\n\nScore on 6-criterion rubric;
 :Output: Evaluation Scorecard;
 stop
 
@@ -30,7 +30,7 @@ note right
   **Level 2 characteristics:**
   * 3 specialist agents + evaluator
   * Sequential pipeline, no revision
-  * All models via Ollama
+  * Pipeline via Ollama, evaluator via Google AI Studio
   * Cumulative data routing
 end note
 

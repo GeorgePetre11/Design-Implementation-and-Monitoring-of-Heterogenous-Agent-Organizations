@@ -8,4 +8,4 @@
 | **Risk Analyst** | `qwen3.5:9b` | `search_web()` + `read_document()` + `assess_risk()`. Now also receives Financial Analyst output and can flag financial risks that contradict FA's analysis. Must cite sources for every risk. Uses `/think` mode for analytical depth while still fitting in VRAM, freeing resources for concurrent agents. |
 | **Strategy Consultant** | `gemma4:31b` | No tools — synthesizes everything. Strict constraint: cannot introduce ANY claim not present in MR/FA/RA outputs. Top-tier writing and synthesis; GPU+RAM split (~19 GB Q4) is acceptable because it runs once per engagement. EM reviews the final report and can send it back if unsupported claims are found. |
 
-Note: The Evaluator is a separate application and is not part of the Level 4 pipeline.
+The **Evaluator** (`gemini-2.5-flash` via Google AI Studio) is deployed as a separate service but is called by the Level 4 orchestrator after SC completes. It can trigger SC revision if scores are below threshold (max 2 evaluator rounds).

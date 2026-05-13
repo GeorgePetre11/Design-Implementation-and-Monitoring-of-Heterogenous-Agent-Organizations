@@ -204,6 +204,7 @@
   ></textarea>
   <div class="row">
     <button id="submit-btn" onclick="startAnalysis()">Analyze</button>
+    <button id="stop-btn" onclick="stopPipeline()" style="display:none; background:#ef4444">Stop</button>
     <span id="status">Ready</span>
   </div>
 </div>
@@ -545,6 +546,7 @@ async function startAnalysis() {
   document.getElementById("eval-issues-list").innerHTML = "";
   document.getElementById("eval-round-badge").textContent = "";
   document.getElementById("submit-btn").disabled = true;
+  document.getElementById("stop-btn").style.display = "";
   setStatus("Starting hybrid pipeline...", "running");
   startTime = Date.now();
   timerInterval = setInterval(updateTimer, 250);
@@ -681,16 +683,147 @@ function handleEvent(msg) {
       setStatus("Error: " + msg.error, "error");
       clearInterval(timerInterval);
       document.getElementById("submit-btn").disabled = false;
+      document.getElementById("stop-btn").style.display = "none";
+      break;
+    case "stopped":
+      clearInterval(timerInterval); updateTimer();
+      setStatus("Pipeline stopped by user.", "error");
+      document.getElementById("submit-btn").disabled = false;
+      document.getElementById("stop-btn").style.display = "none";
+      if (msg.session_id) document.getElementById("m-session").textContent = msg.session_id.slice(0, 8) + "...";
       break;
     case "done":
       clearInterval(timerInterval); updateTimer();
       const revMsg = msg.revisions ? Object.values(msg.revisions).filter(r => r.was_revised).length : 0;
       setStatus(`Pipeline complete. ${revMsg > 0 ? revMsg + " revision(s) needed." : "No revisions needed."}`, "done");
       document.getElementById("submit-btn").disabled = false;
+      document.getElementById("stop-btn").style.display = "none";
       if (msg.session_id) document.getElementById("m-session").textContent = msg.session_id.slice(0, 8) + "...";
       break;
   }
 }
+
+async function stopPipeline() {
+  try {
+    await fetch(`${API}/stop`, { method: "POST" });
+    setStatus("Stopping pipeline...", "running");
+    document.getElementById("stop-btn").disabled = true;
+  } catch {}
+}
+
+let recoveryInterval = null;
+
+function restoreAgentOutputs(agents) {
+  if (!agents) return;
+  if (agents.engagement_manager?.output) {
+    document.getElementById("section-engagement_manager").style.display = "block";
+    if (agents.engagement_manager.elapsed) document.getElementById("badge-engagement_manager").textContent = agents.engagement_manager.elapsed + "s";
+    document.getElementById("content-engagement_manager").innerHTML = renderAnalysisPlan(agents.engagement_manager.output);
+  }
+  if (agents.market_researcher?.output) {
+    document.getElementById("section-market_researcher").style.display = "block";
+    if (agents.market_researcher.elapsed) document.getElementById("badge-market_researcher").textContent = agents.market_researcher.elapsed + "s";
+    document.getElementById("content-market_researcher").innerHTML = renderMarketResearch(agents.market_researcher.output);
+    if (agents.market_researcher.was_revised) {
+      document.getElementById("review-market_researcher").textContent = "REVISED";
+      document.getElementById("review-market_researcher").className = "review-badge revised";
+    }
+  }
+  if (agents.financial_analyst?.output) {
+    document.getElementById("section-financial_analyst").style.display = "block";
+    if (agents.financial_analyst.elapsed) document.getElementById("badge-financial_analyst").textContent = agents.financial_analyst.elapsed + "s";
+    document.getElementById("content-financial_analyst").innerHTML = renderFinancialAnalysis(agents.financial_analyst.output);
+    if (agents.financial_analyst.was_revised) {
+      document.getElementById("review-financial_analyst").textContent = "REVISED";
+      document.getElementById("review-financial_analyst").className = "review-badge revised";
+    }
+  }
+  if (agents.risk_analyst?.output) {
+    document.getElementById("section-risk_analyst").style.display = "block";
+    if (agents.risk_analyst.elapsed) document.getElementById("badge-risk_analyst").textContent = agents.risk_analyst.elapsed + "s";
+    document.getElementById("content-risk_analyst").innerHTML = renderRiskAssessment(agents.risk_analyst.output);
+    if (agents.risk_analyst.was_revised) {
+      document.getElementById("review-risk_analyst").textContent = "REVISED";
+      document.getElementById("review-risk_analyst").className = "review-badge revised";
+    }
+  }
+}
+
+function restoreFromStatus(data) {
+  if (data.question) document.getElementById("question").value = data.question;
+  if (data.session_id) document.getElementById("m-session").textContent = data.session_id.slice(0, 8) + "...";
+  restoreAgentOutputs(data.agents);
+  if (data.full_report) {
+    reportRaw = data.full_report;
+    tokenCount = reportRaw.split(/\s+/).length;
+    document.getElementById("m-tokens").textContent = tokenCount;
+    document.getElementById("report-section").style.display = "block";
+    document.getElementById("report-output").innerHTML = renderMarkdown(reportRaw);
+  }
+  if (data.scorecard) renderEvaluation(data.scorecard, data.scorecard_round);
+  if (data.elapsed) {
+    const m = Math.floor(data.elapsed / 60);
+    const sec = Math.floor(data.elapsed % 60).toString().padStart(2, "0");
+    document.getElementById("m-elapsed").textContent = m > 0 ? `${m}:${sec}` : `${sec}s`;
+  }
+  const revCount = data.revisions ? Object.values(data.revisions).filter(r => r.was_revised).length : 0;
+  if (revCount > 0) {
+    revisionCount = revCount;
+    document.getElementById("m-revisions").textContent = revisionCount;
+  }
+}
+
+function reconnectToStream() {
+  recoveryInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`${API}/status?include_outputs=true`);
+      const data = await res.json();
+      restoreFromStatus(data);
+      const working = Object.values(data.agents || {}).find(a => a.status === "working");
+      if (working) setStatus(`${working.display_name} is working...`, "running");
+      if (data.status === "done" || data.status === "error" || data.status === "stopped") {
+        clearInterval(recoveryInterval);
+        recoveryInterval = null;
+        document.getElementById("submit-btn").disabled = false;
+        document.getElementById("stop-btn").style.display = "none";
+        if (data.status === "done") {
+          const revMsg = data.revisions ? Object.values(data.revisions).filter(r => r.was_revised).length : 0;
+          setStatus(`Pipeline complete. ${revMsg > 0 ? revMsg + " revision(s) needed." : "No revisions needed."}`, "done");
+        } else if (data.status === "stopped") {
+          setStatus("Pipeline stopped by user.", "error");
+        } else {
+          setStatus("Pipeline failed.", "error");
+        }
+      }
+    } catch {}
+  }, 2000);
+}
+
+async function checkRecovery() {
+  try {
+    const res = await fetch(`${API}/status?include_outputs=true`);
+    const data = await res.json();
+    if (data.status === "idle") return;
+    restoreFromStatus(data);
+    if (data.status === "running") {
+      document.getElementById("submit-btn").disabled = true;
+      document.getElementById("stop-btn").style.display = "";
+      setStatus("Reconnected — pipeline is running...", "running");
+      startTime = Date.now() - (data.elapsed || 0) * 1000;
+      timerInterval = setInterval(updateTimer, 250);
+      reconnectToStream();
+    } else if (data.status === "done") {
+      const revMsg = data.revisions ? Object.values(data.revisions).filter(r => r.was_revised).length : 0;
+      setStatus(`Pipeline complete. ${revMsg > 0 ? revMsg + " revision(s) needed." : "No revisions needed."}`, "done");
+    } else if (data.status === "stopped") {
+      setStatus("Pipeline was stopped.", "error");
+    } else if (data.status === "error") {
+      setStatus("Pipeline failed.", "error");
+    }
+  } catch {}
+}
+
+document.addEventListener("DOMContentLoaded", checkRecovery);
 
 function copyReport() {
   navigator.clipboard.writeText(reportRaw).then(() => {

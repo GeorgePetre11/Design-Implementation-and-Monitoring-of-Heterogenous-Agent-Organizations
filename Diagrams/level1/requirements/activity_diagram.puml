@@ -1,0 +1,50 @@
+@startuml l1_activity
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 1 — Activity Diagram (Single Agent Baseline)**
+
+|Client|
+start
+:Submit business question;
+
+|#E3F2FD|Generic Agent (qwen2.5:14b)|
+:Receive client question;
+:Analyze the business context;
+:Research the market landscape;
+:Evaluate financial implications;
+:Identify potential risks;
+:Synthesize all findings;
+:Write consulting report\nwith recommendations;
+:Include self-evaluation\nin the report;
+
+|Client|
+:Receive consulting report\n(with embedded self-evaluation);
+
+|#FFFDE7|Evaluator (gemini-2.5-flash)|
+:Score report on 6-criterion rubric;
+:Produce evaluation scorecard;
+
+|Client|
+:Receive final report + scorecard;
+stop
+
+note right
+  **Level 1 Characteristics:**
+  * 1 agent, 1 model (qwen2.5:14b)
+  * No role separation
+  * No tool access
+  * No structured output
+  * Self-evaluation only
+  * Evaluator runs separately
+  ----
+  **Baseline** for progressive
+  complexity comparison
+end note
+
+@enduml

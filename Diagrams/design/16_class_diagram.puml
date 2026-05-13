@@ -36,25 +36,25 @@ class MarketResearcher extends Agent {
 
 class FinancialAnalyst extends Agent {
   - role = FINANCIAL_ANALYST
-  - model = "deepseek-r1:14b / qwen3:14b"
+  - model = "deepseek-r1:14b (L3) / gpt-oss:20b (L4)"
   + analyze_financials(): FinancialAnalysis
 }
 
 class RiskAnalyst extends Agent {
   - role = RISK_ANALYST
-  - model = "qwen3:14b"
+  - model = "qwen3:14b (L3) / qwen3.5:9b (L4)"
   + assess_risks(): RiskMatrix
 }
 
 class StrategyConsultant extends Agent {
   - role = STRATEGY_CONSULTANT
-  - model = "qwen3:32b / qwen3.5:27b"
+  - model = "qwen3:32b (L3) / gemma4:31b (L4)"
   + synthesize_report(): ConsultingReport
 }
 
 class Evaluator extends Agent {
   - role = EVALUATOR
-  - model = "claude-opus-4-6"
+  - model = "gemini-2.5-flash"
   + evaluate_report(): EvaluationScorecard
 }
 
@@ -98,7 +98,7 @@ enum AgentRole {
 
 enum LLMProvider {
   OLLAMA
-  ANTHROPIC_API
+  GOOGLE_AI_STUDIO
 }
 
 ' ── Output Models ──

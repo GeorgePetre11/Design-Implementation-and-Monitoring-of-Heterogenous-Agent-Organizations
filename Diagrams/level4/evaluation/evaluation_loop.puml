@@ -1,0 +1,71 @@
+@startuml l4_evaluation_loop
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 4 — Evaluation Loop with SC Revision**
+
+start
+
+partition "Pipeline Output" #F3E5F5 {
+  :Strategy Consultant (gemma4:31b)\ncompletes consulting report;
+  :EM reviews and approves report;
+}
+
+partition "Evaluator Service (gemini-2.5-flash)" #FFFDE7 {
+  :Orchestrator sends report\nto Evaluator via HTTP POST;
+
+  repeat
+    :Evaluator scores on 6-criterion rubric;
+
+    split
+      :Completeness (20%);
+    split again
+      :Accuracy (20%);
+    split again
+      :Coherence (15%);
+    split again
+      :Structure (15%);
+    split again
+      :Actionability (15%);
+    split again
+      :Critical Depth (15%);
+    end split
+
+    :Calculate weighted overall score;
+    :Produce Scorecard JSON\n(scores + justifications);
+    :Send scorecard to client\nvia SSE;
+
+    if (Any criterion < 5?) then (yes)
+      :Build revision feedback\nfrom failing criteria +\ncritical issues;
+      :Strategy Consultant rewrites\nreport addressing feedback;
+      :New report replaces old;
+    else (no)
+    endif
+
+  repeat while (Revision needed AND\nround < 2?) is (next round)
+  -> done;
+}
+
+:Save session to SQLite\n(report + scorecard + revisions);
+
+:Return final report +\nscorecard to client;
+stop
+
+note right
+  **Level 4 Evaluation — Key Differences:**
+  * Evaluator can trigger SC revision (max 2 rounds)
+  * Criterion threshold: score < 5 triggers revision
+  * SC receives specific failing criteria + justifications
+  * Evaluator is separate Docker service
+  * Google AI Studio API (gemini-2.5-flash)
+  ----
+  **Only level with evaluator-driven revision**
+  L1-L3: evaluator scores but cannot revise
+end note
+
+@enduml

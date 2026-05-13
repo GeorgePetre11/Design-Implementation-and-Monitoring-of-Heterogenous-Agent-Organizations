@@ -1,0 +1,71 @@
+@startuml l3_activity
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 3 — Activity Diagram (Five-Agent Pipeline)**
+
+|Client|
+start
+:Submit business question;
+
+|#E3F2FD|Engagement Manager (qwen3:8b)|
+:Decompose question into\nworkstreams & sub-questions;
+:Create analysis plan (JSON);
+note right
+  **Tools:** none
+  **Cannot:** research, analyze, write report
+end note
+
+|#E8F5E9|Market Researcher (qwen3:14b)|
+:Receive question + analysis plan;
+:Research loop (max 8 rounds):\nsearch_web() → read_document();
+:Synthesize into Market Analysis JSON;
+note right
+  **Tools:** search_web(), read_document()
+  **Cannot:** do financials, assess risks
+end note
+
+|#FFF3E0|Financial Analyst (deepseek-r1:14b)|
+:Receive plan + market analysis;
+:Model costs, revenue, ROI,\nbreak-even, sensitivity analysis;
+:Use chain-of-thought reasoning\n(explicit <think> tags);
+:Produce Financial Analysis JSON;
+note right
+  **Tools:** none (native reasoning)
+  **Cannot:** do market research, assess risks
+end note
+
+|#FFEBEE|Risk Analyst (qwen3:14b)|
+:Receive plan + market +\nfinancial analysis;
+:Research risks: search_web()\n+ read_document() + assess_risk();
+:Identify 5-8 risks with\nprobability × impact scoring;
+:Produce Risk Assessment JSON;
+note right
+  **Tools:** search_web(), read_document(),
+  assess_risk()
+  **Cannot:** do market research, financials
+end note
+
+|#F3E5F5|Strategy Consultant (qwen3:32b)|
+:Receive all prior analyses;
+:Synthesize into consulting report\nwith 2-3 strategic options,\npros/cons, recommendation;
+:Stream report tokens via SSE;
+note right
+  **Tools:** none (reads context only)
+  **Cannot:** search for new information
+end note
+
+|#FFFDE7|Evaluator (gemini-2.5-flash)|
+:Score report on 6-criterion rubric;
+:Produce evaluation scorecard;
+
+|Client|
+:Receive report + scorecard;
+stop
+
+@enduml

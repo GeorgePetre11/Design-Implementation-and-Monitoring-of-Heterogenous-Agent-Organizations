@@ -1,0 +1,36 @@
+@startuml level1_agent
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Level 1 — Single Agent Definition**
+
+actor "Client" as client
+
+component "**Generic Agent**\n//qwen2.5:14b (Ollama)//\n\nHandles the entire consulting\nengagement end-to-end:\nresearch, analysis, synthesis,\nreport writing, self-evaluation\n----\nTools: none\nOutput: Consulting Report (Markdown)\nConstraints: none\nSpecialization: none" as agent #E3F2FD
+
+package "LLM Provider" #FFF3E0 {
+  component "Ollama\n(Local Inference)" as ollama
+}
+
+client -down-> agent : "business\nquestion"
+agent -down-> client : "consulting\nreport"
+agent ..> ollama : "qwen2.5:14b"
+
+note right of agent
+  **No role separation:**
+  * No system prompt specialization
+  * No tool restrictions
+  * No output schema enforcement
+  * No orchestrator routing
+  * Self-evaluation included in report
+  ----
+  **Baseline for comparison**
+  against multi-agent levels
+end note
+
+@enduml

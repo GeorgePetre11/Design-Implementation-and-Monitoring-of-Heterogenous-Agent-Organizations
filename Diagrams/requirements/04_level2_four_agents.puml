@@ -40,11 +40,12 @@ note right
   **Cannot:** search for new info
 end note
 
-|#FFF3E0|Evaluator|
+|#FFFDE7|Evaluator|
 :Score report on rubric\n(completeness, accuracy, coherence,\nstructure, actionability, critical depth);
 :Produce evaluation scorecard;
 note right
-  **Model:** qwen3:14b (Ollama)
+  **Model:** gemini-2.5-flash (Google AI Studio)
+  **Tools:** none — reads report from context
 end note
 
 |Client|

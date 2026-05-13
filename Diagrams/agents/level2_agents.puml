@@ -1,0 +1,45 @@
+@startuml level2_agents
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Level 2 — Three Pipeline Agents + Evaluator**
+
+actor "Client" as client
+
+package "Orchestrator (Python — No LLM)" as orch #F5F5F5 {
+  component "Task Router" as router
+  component "Validation\n& Schema\nEnforcer" as val
+}
+
+component "**Engagement Manager**\n//qwen3:8b (Ollama)//\n\nDecomposes question into\nworkstreams & sub-questions\n----\nTools: none\nOutput: Analysis Plan JSON\nMode: /no_think (fast decomposition)" as em #E3F2FD
+
+component "**Market Researcher**\n//qwen3:14b (Ollama)//\n\nInvestigates market landscape:\ncompetitors, trends, segments\n----\nTools: search_web(), read_document()\nOutput: Market Analysis JSON\nMode: /think (synthesis)" as mr #E8F5E9
+
+component "**Strategy Consultant**\n//qwen3:32b (Ollama)//\n\nSynthesizes all inputs into\nfinal recommendation with\noptions & tradeoffs\n----\nTools: reads all analyses from context\nOutput: Consulting Report (Markdown)\nMode: /think (reasoning + writing)" as sc #F3E5F5
+
+component "**Evaluator**\n//gemini-2.5-flash (Google AI Studio)//\n\nScores report on 6-criterion rubric\n(completeness, accuracy, coherence,\nstructure, actionability, critical depth)\n----\nTools: none\nOutput: Evaluation Scorecard JSON\nProvider: Cloud (Google AI Studio)" as ev #FFFDE7
+
+client -down-> router : "business\nquestion"
+router -down-> em : "route"
+em -down-> val : "analysis plan"
+val -down-> mr : "plan"
+mr -down-> val : "market analysis"
+val -down-> sc : "plan + market\nanalysis"
+sc -down-> val : "consulting report"
+val -right-> ev : "report"
+ev -down-> client : "report +\nscorecard"
+
+note bottom
+  **Level 2 — Sequential Pipeline**
+  EM → MR → SC → Evaluator
+  3 pipeline agents (Ollama) + evaluator (Google AI Studio)
+  No revision capability, no EM review
+  1 model family (Qwen 3), 3 sizes (8B/14B/32B)
+end note
+
+@enduml

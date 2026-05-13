@@ -1,0 +1,146 @@
+@startuml l4_sequence
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam sequenceMessageAlign center
+
+title **Level 4 — Execution Sequence (Hybrid Hierarchical)**\n//Sequential pipeline + EM review + Evaluator revision loop//
+
+actor Client as client
+participant "Orchestrator" as orch #F5F5F5
+participant "Engagement\nManager\n(qwen3.5:9b)" as em #E3F2FD
+participant "Market\nResearcher\n(qwen3.5:35b-a3b)" as mr #E8F5E9
+participant "Financial\nAnalyst\n(gpt-oss:20b)" as fa #FFF3E0
+participant "Risk\nAnalyst\n(qwen3.5:9b)" as ra #FFEBEE
+participant "Strategy\nConsultant\n(gemma4:31b)" as sc #F3E5F5
+participant "Evaluator\n(gemini-2.5-flash)" as ev #FFFDE7
+database "SQLite" as db
+
+client -> orch : Business question
+orch -> db : log(session_start)
+
+== Phase 1: Task Decomposition ==
+
+orch -> em : question
+activate em
+em --> orch : Analysis Plan JSON
+deactivate em
+orch -> orch : validate(AnalysisPlanSchema)
+
+== Phase 2: Research + EM Review ==
+
+orch -> mr : question + plan
+activate mr
+mr --> orch : Market Analysis JSON
+deactivate mr
+orch -> orch : validate(MarketAnalysisSchema)
+
+orch -> em : review MR output
+activate em
+em --> orch : approved / needs revision
+deactivate em
+
+opt revision needed (max 1)
+  orch -> mr : plan + feedback
+  activate mr
+  mr --> orch : Revised Market Analysis
+  deactivate mr
+end
+
+== Phase 3: Financial Analysis + EM Review ==
+
+orch -> fa : plan + market_analysis
+activate fa
+fa --> orch : Financial Analysis JSON
+deactivate fa
+orch -> orch : validate + schema guard\n(3 scenarios + sensitivity)
+
+opt schema gaps found
+  orch -> fa : plan + market + feedback
+  activate fa
+  fa --> orch : Revised Financial Analysis
+  deactivate fa
+end
+
+orch -> orch : budget validation\n(Python-level check)
+
+orch -> em : review FA output
+activate em
+em --> orch : approved / needs revision
+deactivate em
+
+opt revision needed (max 1)
+  orch -> fa : plan + market + feedback
+  activate fa
+  fa --> orch : Revised Financial Analysis
+  deactivate fa
+end
+
+== Phase 4: Risk Assessment + EM Review ==
+
+orch -> ra : plan + market + financial
+activate ra
+ra --> orch : Risk Assessment JSON
+deactivate ra
+orch -> orch : validate(RiskAssessmentSchema)
+
+orch -> em : review RA output
+activate em
+em --> orch : approved / needs revision
+deactivate em
+
+opt revision needed (max 1)
+  orch -> ra : plan + market + financial + feedback
+  activate ra
+  ra --> orch : Revised Risk Assessment
+  deactivate ra
+end
+
+== Phase 5: Report Synthesis + EM Review ==
+
+orch -> sc : plan + all analyses
+activate sc
+loop for each token
+  sc --> orch : streaming token
+  orch --> client : SSE: {type: "token"}
+end
+sc --> orch : report complete
+deactivate sc
+
+opt SC requests upstream revision
+  orch -> fa : re-run with SC feedback
+  activate fa
+  fa --> orch : Revised Financial Analysis
+  deactivate fa
+  orch -> sc : re-run with corrected data
+  activate sc
+  sc --> orch : new report (streamed)
+  deactivate sc
+end
+
+== Phase 6: Evaluation + Optional SC Revision ==
+
+loop max 2 evaluator rounds
+  orch -> ev : question + report
+  activate ev
+  ev --> orch : Scorecard JSON
+  deactivate ev
+  orch -> db : log(evaluation, scores)
+  orch --> client : SSE: {type: "evaluator_complete"}
+
+  alt any criterion < 5
+    orch -> sc : all analyses + evaluator feedback
+    activate sc
+    sc --> orch : revised report (streamed)
+    deactivate sc
+  else all criteria >= 5
+  end
+end
+
+orch -> db : save_session(complete)
+orch -> client : SSE: {type: "done", scorecard}
+
+@enduml

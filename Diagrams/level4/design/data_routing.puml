@@ -1,0 +1,72 @@
+@startuml l4_data_routing
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+
+title **Level 4 — Data Routing with Review Loops**\n//Cumulative routing + EM review gates//
+
+left to right direction
+
+rectangle "Client Question" as input #F5F5F5
+
+rectangle "Engagement\nManager\n(qwen3.5:9b)" as em #E3F2FD
+rectangle "Market\nResearcher\n(qwen3.5:35b-a3b)" as mr #E8F5E9
+rectangle "Financial\nAnalyst\n(gpt-oss:20b)" as fa #FFF3E0
+rectangle "Risk\nAnalyst\n(qwen3.5:9b)" as ra #FFEBEE
+rectangle "Strategy\nConsultant\n(gemma4:31b)" as sc #F3E5F5
+rectangle "Evaluator\n(gemini-2.5-flash)" as ev #FFFDE7
+
+card "Analysis\nPlan" as plan #BBDEFB
+card "Market\nAnalysis" as mdata #C8E6C9
+card "Financial\nAnalysis" as fdata #FFE0B2
+card "Risk\nMatrix" as rdata #FFCDD2
+card "Consulting\nReport" as report #E1BEE7
+card "Evaluation\nScorecard" as score #FFF9C4
+
+input --> em
+em --> plan
+
+plan --> mr
+mr --> mdata
+mdata --> em : "EM review"
+
+plan --> fa
+mdata --> fa
+fa --> fdata
+fdata --> em : "EM review"
+
+plan --> ra
+mdata --> ra
+fdata --> ra
+ra --> rdata
+rdata --> em : "EM review"
+
+plan --> sc
+mdata --> sc
+fdata --> sc
+rdata --> sc
+sc --> report
+report --> em : "EM review"
+
+report --> ev
+ev --> score
+score --> sc : "revision\n(if low scores)"
+
+note as N1
+  **Level 4 Data Routing (Hybrid):**
+  ----
+  Same cumulative routing as Level 3, PLUS:
+  * EM reviews each agent output (max 1 revision each)
+  * EM feedback sent back to agent if quality insufficient
+  * Evaluator scores final report
+  * Evaluator can trigger SC revision (max 2 rounds)
+  * SC can request upstream agent re-run (max 1)
+  ----
+  //Review loops add quality gates//
+  //without changing the data accumulation pattern//
+end note
+
+@enduml

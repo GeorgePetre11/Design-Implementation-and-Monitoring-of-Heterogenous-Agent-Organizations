@@ -1,0 +1,61 @@
+@startuml l3_evaluation
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 3 — Evaluation Process**
+
+start
+
+partition "Pipeline Output" #F3E5F5 {
+  :Strategy Consultant (qwen3:32b)\ncompletes consulting report;
+  note right
+    Report synthesizes inputs from:
+    * Analysis Plan (EM)
+    * Market Analysis (MR)
+    * Financial Analysis (FA)
+    * Risk Assessment (RA)
+  end note
+}
+
+partition "Standalone Evaluator Service" #FFFDE7 {
+  :Orchestrator sends report\nto Evaluator via HTTP POST;
+  :Evaluator (gemini-2.5-flash)\nreceives question + report;
+  :Score on 6-criterion rubric;
+
+  split
+    :Completeness (20%)\nAll workstreams covered?;
+  split again
+    :Accuracy (20%)\nClaims backed by sources?;
+  split again
+    :Coherence (15%)\nLogical flow data → rec?;
+  split again
+    :Structure (15%)\nProfessional format?;
+  split again
+    :Actionability (15%)\nSpecific recommendations?;
+  split again
+    :Critical Depth (15%)\nRisks acknowledged?;
+  end split
+
+  :Calculate weighted overall score;
+  :Produce Evaluation Scorecard JSON;
+}
+
+:Return scorecard to client;
+stop
+
+note right
+  **Level 3 vs Level 2 Evaluation:**
+  * Same evaluator service
+  * Same rubric and criteria
+  * Richer report to evaluate
+    (includes financial + risk analysis)
+  * No revision capability at L3
+  * Scores compared across levels
+end note
+
+@enduml

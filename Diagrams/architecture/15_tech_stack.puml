@@ -37,7 +37,7 @@ package "Agent Runtime" #F3E5F5 {
 
 package "LLM Clients" #FFF3E0 {
   component "ollama\nSDK" as ollama
-  component "anthropic\nSDK\n(L4 Evaluator)" as anth
+  component "openai\nSDK\n(Evaluator → Google AI Studio)" as google_sdk
 }
 
 package "Data Layer" #FFEBEE {
@@ -60,7 +60,7 @@ agentbase --> parsers
 workflow --> evlog
 
 agentbase --> ollama
-agentbase --> anth
+agentbase --> google_sdk
 
 evlog --> sqlite
 rest --> sqlite

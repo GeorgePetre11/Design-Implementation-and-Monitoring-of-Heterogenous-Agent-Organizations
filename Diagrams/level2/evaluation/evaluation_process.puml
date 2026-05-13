@@ -1,0 +1,53 @@
+@startuml l2_evaluation
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 2 — Evaluation Process**
+
+start
+
+partition "Pipeline Output" #F3E5F5 {
+  :Strategy Consultant (qwen3:32b)\ncompletes consulting report;
+}
+
+partition "Standalone Evaluator Service" #FFFDE7 {
+  :Orchestrator sends report\nto Evaluator via HTTP POST;
+  :Evaluator (gemini-2.5-flash)\nreceives question + report;
+  :Score on 6-criterion rubric\n(1-10 scale each);
+
+  split
+    :Completeness (20%);
+  split again
+    :Accuracy (20%);
+  split again
+    :Coherence (15%);
+  split again
+    :Structure (15%);
+  split again
+    :Actionability (15%);
+  split again
+    :Critical Depth (15%);
+  end split
+
+  :Calculate weighted overall score;
+  :Produce Evaluation Scorecard JSON\n(scores + justifications + summary);
+}
+
+:Return scorecard to client\nvia SSE stream;
+stop
+
+note right
+  **Level 2 Evaluation:**
+  * Evaluator runs as separate service
+  * Google AI Studio (gemini-2.5-flash)
+  * No revision capability — scores only
+  * Scorecard displayed alongside report
+  * Same evaluator used across all levels
+end note
+
+@enduml

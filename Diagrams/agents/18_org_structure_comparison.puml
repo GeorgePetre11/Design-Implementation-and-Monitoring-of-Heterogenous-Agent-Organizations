@@ -65,12 +65,12 @@ rectangle "**Level 3\n5-Agent Pipeline**" as lv3 #FFF3E0 {
 }
 
 rectangle "**Level 4\nHybrid with EM Review**" as lv4 #F3E5F5 {
-  rectangle "EM\nqwen3:8b" as d1 #E1BEE7
-  rectangle "MR\nqwen3:14b" as d2 #E1BEE7
-  rectangle "FA\nqwen3:14b" as d3 #E1BEE7
-  rectangle "RA\nqwen3:14b" as d4 #E1BEE7
-  rectangle "SC\nqwen3.5:27b" as d5 #E1BEE7
-  rectangle "EV\nClaude Opus 4.6" as d6 #E1BEE7
+  rectangle "EM\nqwen3.5:9b" as d1 #E1BEE7
+  rectangle "MR\nqwen3.5:35b-a3b" as d2 #E1BEE7
+  rectangle "FA\ngpt-oss:20b" as d3 #E1BEE7
+  rectangle "RA\nqwen3.5:9b" as d4 #E1BEE7
+  rectangle "SC\ngemma4:31b" as d5 #E1BEE7
+  rectangle "EV\ngemini-2.5-flash" as d6 #E1BEE7
 
   d1 -right-> d2
   d2 -down-> d1 : review
@@ -83,11 +83,11 @@ rectangle "**Level 4\nHybrid with EM Review**" as lv4 #F3E5F5 {
   d1 -right-> d6
 
   note bottom
-    **6 agents, 4 model families**
+    **6 agents, 6 model families**
     Full specialization
     Sequential + EM review
     Max 1 revision per agent
-    Evaluator via Anthropic API
+    Evaluator via Google AI Studio
   end note
 }
 

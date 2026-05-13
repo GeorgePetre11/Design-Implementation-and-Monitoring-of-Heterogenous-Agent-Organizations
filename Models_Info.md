@@ -1,80 +1,102 @@
-# Optimal Ollama models for a multi-agent consulting system
+# Model Selection — Multi-Agent Consulting System
 
-**Qwen 3 is the dominant model family for this setup, but the real unlock is pairing it with DeepSeek R1 distills for quantitative roles and running different model sizes on each machine.** Your MacBook Pro M3 (16GB) can reliably handle 7–8B models at full GPU speed, while the Ryzen 7 (48GB) comfortably runs 32B models — creating a natural two-tier architecture where fast, lightweight agents live on the Mac and heavy reasoning agents live on the PC. Your current Qwen 2.5 14B baseline is a solid choice but likely runs poorly on the MacBook due to memory pressure; upgrading to Qwen 3 across the board yields significant gains at every parameter count.
+The system uses **six distinct model families** across four complexity levels, creating genuine heterogeneity in model architecture, size, and provider. All pipeline agents run locally via Ollama; the Evaluator uses Gemini 2.5 Flash via Google AI Studio.
 
-The table below maps each agent role to its recommended model, then the sections that follow explain why.
+## Model Assignments by Level
 
-| Agent Role | Recommended Model | Size | Machine | RAM Used | Why This Model |
-|---|---|---|---|---|---|
-| **L1 — Single Agent** | Qwen 3 14B Q4_K_M | 14B | Ryzen 7 | ~11 GB | Matches Qwen 2.5 32B; thinking toggle; strong writing + reasoning |
-| **L2 — Consultant** | Qwen 3 32B Q4_K_M | 32B | Ryzen 7 | ~22 GB | Best dense all-rounder under 70B; handles research, analysis, and writing |
-| **L3 — Engagement Mgr** | Qwen 3 8B (thinking ON) | 8B | MacBook M3 | ~6 GB | Fast structured decomposition; explicit chain-of-thought; 35–55 tok/s |
-| **L3 — Market Researcher** | Qwen 3 14B Q4_K_M | 14B | Ryzen 7 | ~11 GB | 128K context; broad knowledge; excellent synthesis |
-| **L3 — Strategy Consultant** | Qwen 3 32B Q4_K_M | 32B | Ryzen 7 | ~22 GB | Superior business writing; nuanced argumentation |
-| **L4 — Engagement Mgr** | Qwen 3 4B or Phi-4 Mini Reasoning | 3.8–4B | MacBook M3 | ~3.3 GB | Ultra-fast task routing; structured output; frees Mac memory |
-| **L4 — Market Researcher** | Qwen 3 14B Q4_K_M | 14B | Ryzen 7 | ~11 GB | Strong factual synthesis; multilingual for global markets |
-| **L4 — Financial Analyst** | DeepSeek R1 Distill 14B Q4_K_M | 14B | Ryzen 7 | ~11 GB | MATH-500: 93.9%; purpose-built for quantitative reasoning |
-| **Evaluator** | Claude Opus 4.6 (API) | — | Cloud | — | Already chosen; excellent for evaluation and feedback |
+### Level 1 — Single Agent (Baseline)
 
----
+| Agent Role | Model | Size | Why This Model |
+|---|---|---|---|
+| **Single Agent** | qwen2.5:14b | 14B | Baseline model; produces entire report end-to-end including self-evaluation |
 
-## Why Qwen 2.5 14B should be upgraded
+### Level 2 — Three Agents (Core Roles)
 
-Your current Level 1 baseline, Qwen 2.5 14B, was an excellent choice six months ago but has been decisively surpassed. **Qwen 3 14B matches or exceeds Qwen 2.5 32B** on reasoning benchmarks (AIME '24: 73.8% vs ~65%) while consuming the same memory. It adds a critical feature for multi-agent work: a **thinking/non-thinking toggle** that lets agents switch between deep chain-of-thought reasoning and fast direct responses per turn — no model swap needed.
+| Agent Role | Model | Size | Why This Model |
+|---|---|---|---|
+| **Engagement Manager** | qwen3:8b | 8B | Fast structured decomposition; thinking toggle; crisp instruction following |
+| **Market Researcher** | qwen3:14b | 14B | 128K context; broad knowledge; excellent synthesis |
+| **Strategy Consultant** | qwen3:32b | 32B | Superior business writing; nuanced argumentation; 95.2 on ArenaHard |
 
-On your MacBook M3 with 16GB, the 14B Q4_K_M model needs ~10.7GB at runtime, which exceeds the Mac's ~10.5GB GPU allocation. This means partial CPU offload and a speed drop from 35+ tok/s to roughly 10–20 tok/s. That's workable but frustrating. **For the MacBook, 8B models are the sweet spot** — they load entirely into GPU memory and generate at 35–55 tok/s. Reserve the 14B and 32B models for the Ryzen 7 PC, where 48GB of RAM gives comfortable headroom.
+### Level 3 — Five Agents (Full Specialization)
 
-If you want to keep running a 14B on the Mac, use Q3_K_M quantization (~9GB) and cap context at 4096 tokens. Enable flash attention (`OLLAMA_FLASH_ATTENTION=1`) and KV cache quantization (`OLLAMA_KV_CACHE_TYPE=q8_0`) to claw back 1–2GB. But the honest recommendation: run Qwen 3 8B on the Mac and Qwen 3 32B on the PC.
+| Agent Role | Model | Size | Why This Model |
+|---|---|---|---|
+| **Engagement Manager** | qwen3:8b | 8B | Fast structured decomposition; thinking toggle |
+| **Market Researcher** | qwen3:14b | 14B | 128K context; broad knowledge; excellent synthesis |
+| **Financial Analyst** | deepseek-r1:14b | 14B | MATH-500: 93.9%; purpose-built for quantitative reasoning; explicit chain-of-thought |
+| **Risk Analyst** | qwen3:14b | 14B | Edge-case thinking; /think mode for analytical depth |
+| **Strategy Consultant** | qwen3:32b | 32B | Superior business writing; nuanced argumentation |
 
----
+### Level 4 — Six Agents (Hybrid Hierarchical)
 
-## How each agent role maps to model strengths
-
-**Engagement Managers (L3 and L4)** need structured thinking and task decomposition — breaking a business question like "Should we enter the Southeast Asian market?" into discrete workstreams (market sizing, regulatory analysis, competitive landscape, financial modeling). These agents don't need deep domain knowledge; they need crisp instruction following and structured output. Qwen 3 8B with thinking mode enabled produces explicit `<think>` reasoning chains that naturally decompose problems into steps. For the L4 Engagement Manager, which handles even more routine orchestration, **Phi-4 Mini Reasoning at 3.8B** is remarkably capable — it was RL-trained specifically for step-by-step reasoning and runs at 60+ tok/s on the M3, freeing memory for other processes.
-
-**Market Researchers (L3 and L4)** synthesize competitive intelligence, market trends, and customer segments. They need broad factual knowledge, long-context processing for ingesting reports, and low hallucination rates. **Qwen 3 14B** excels here: it supports **128K token context** natively (critical for processing lengthy market reports), covers 29+ languages for international research, and was trained on 18 trillion tokens giving it deep knowledge across industries. Running on the Ryzen 7 at ~11GB, it leaves ample room for a second model to run concurrently.
-
-**The Strategy Consultant (L3)** does the highest-value writing work — synthesizing findings into recommendations with options, tradeoffs, and persuasive argumentation. This demands the most capable model you can run. **Qwen 3 32B** is the clear winner: it scores 95.2 on ArenaHard (a writing-quality benchmark), surpasses DeepSeek R1 Distill 32B on general tasks while matching it on reasoning, and produces notably coherent long-form business writing. At ~22GB Q4_K_M, it's the largest dense model that runs comfortably on 48GB RAM. Using non-thinking mode for the actual writing and thinking mode for analysis gives you two capabilities in one model.
-
-**The Financial Analyst (L4)** is the one role where a specialist model decisively beats the generalist. DeepSeek R1 Distill Qwen 14B scores **93.9% on MATH-500** and 69.7% on AIME — outperforming models four times its size on quantitative tasks. Its explicit chain-of-thought reasoning shows every calculation step, making it easy for the Evaluator (Claude Opus 4.6) to verify financial projections and catch errors. The R1 distill models were specifically trained via knowledge distillation from the full DeepSeek R1 671B on mathematical and logical reasoning tasks, giving them disproportionate quantitative strength for their parameter count.
-
----
-
-## Practical deployment across two machines
-
-The architecture should route agents to machines based on model size, not agent type. Here's how to think about it:
-
-**MacBook M3 16GB — the "fast lane."** This machine handles Engagement Manager agents and any routing/classification tasks. Keep one model loaded at all times (`OLLAMA_KEEP_ALIVE=-1`). Set `OLLAMA_MAX_LOADED_MODELS=1` and `OLLAMA_NUM_PARALLEL=1`. The 8B model generates at 35–55 tok/s, making it feel responsive for decomposition tasks that produce shorter outputs. One important constraint: **standardize context length across all requests** (e.g., always use `num_ctx: 8192`) because Ollama treats different context sizes as different model configurations and will trigger a slow reload.
-
-**Ryzen 7 48GB — the "heavy lifter."** This machine runs Consultant, Researcher, Strategy, and Financial Analyst agents. The critical question is whether this PC has a dedicated GPU. With **CPU-only inference**, expect roughly **2–5 tok/s for 32B models** and 5–10 tok/s for 14B models. That's slow but functional for generating consulting reports where latency tolerance is minutes, not seconds. With a **dedicated GPU** (e.g., RTX 3060 12GB or better), the 14B model runs at 30–40 tok/s and the 32B at 15–30 tok/s depending on VRAM — a transformative difference. If you're investing in this system, a 16–24GB GPU for the Ryzen is the single highest-impact upgrade.
-
-With 48GB RAM, you can keep **two models loaded simultaneously**: the 32B Qwen 3 (~22GB) plus the 14B DeepSeek R1 Distill (~11GB) = ~33GB, leaving 15GB for the OS and applications. This means the Strategy Consultant and Financial Analyst agents can alternate without model swap delays. Configure this with `OLLAMA_MAX_LOADED_MODELS=2`.
-
-For cross-machine routing, use **Olla** (a lightweight Go proxy at github.com/thushan/olla) to present a unified API endpoint. It supports intelligent model-aware routing — requests for `qwen3:8b` go to the MacBook, requests for `qwen3:32b` go to the Ryzen. Set `OLLAMA_HOST=0.0.0.0` on both machines to accept remote connections.
+| Agent Role | Model | Size | Why This Model |
+|---|---|---|---|
+| **Engagement Manager** | qwen3.5:9b | 9B | Fast decomposition + intermediate review; fits VRAM; uses /think mode toggles |
+| **Market Researcher** | qwen3.5:35b-a3b | 35B (MoE, 3B active) | 35B-tier knowledge at 3B-tier speed; broad factual synthesis; /no_think for factual work |
+| **Financial Analyst** | gpt-oss:20b | 20B | Strong quantitative reasoning; /think for complex calculations, /no_think for extraction |
+| **Risk Analyst** | qwen3.5:9b | 9B | Analytical reasoning with /think mode; fits VRAM, freeing resources for concurrent agents |
+| **Strategy Consultant** | gemma4:31b | 31B | Top-tier writing and synthesis; GPU+RAM split; no thinking-mode toggle |
+| **Evaluator** | gemini-2.5-flash | — | Google AI Studio free tier (~10 RPM); strong analytical reasoning; OpenAI-compatible API |
 
 ---
 
-## The MoE wildcard worth testing
+## Why each model was chosen
 
-One model deserves special mention: **Qwen 3 30B-A3B**, a Mixture-of-Experts model with 30B total parameters but only **3B active per token**. It matches QwQ-32B (a dedicated 32B reasoning model) on math benchmarks while using dramatically less compute. At ~18GB Q4_K_M it fits on the Ryzen 7, but because only 3B parameters activate per token, inference speed is closer to a 3B model — potentially **15–25 tok/s even on CPU**. This makes it a compelling alternative for the Market Researcher role where you want broad knowledge (30B parameter knowledge base) with fast generation. The tradeoff is that MoE models can be less consistent than dense models on nuanced writing tasks, so test it against the dense Qwen 3 14B on your specific consulting prompts before committing.
+**Engagement Manager (qwen3:8b → qwen3.5:9b)** needs structured thinking and task decomposition — breaking a business question like "Should we enter the Southeast Asian market?" into discrete workstreams. These agents don't need deep domain knowledge; they need crisp instruction following and structured output. The Qwen 3/3.5 small models with thinking mode enabled produce explicit `<think>` reasoning chains that naturally decompose problems into steps. At L4, the EM also reviews intermediate outputs from other agents, so the 9B model provides enough capability for quality assessment.
+
+**Market Researcher (qwen3:14b → qwen3.5:35b-a3b)** synthesizes competitive intelligence, market trends, and customer segments. Needs broad factual knowledge, long-context processing for ingesting reports, and low hallucination rates. At L3, **Qwen 3 14B** supports 128K context natively and was trained on 18T tokens giving it deep knowledge across industries. At L4, the **Qwen 3.5 35B-A3B** MoE model provides 35B-tier knowledge with only 3B active parameters per token — meaning 35B-quality synthesis at the inference speed of a 3B model.
+
+**Financial Analyst (deepseek-r1:14b → gpt-oss:20b)** is the role where a specialist model decisively beats the generalist. At L3, **DeepSeek R1 Distill 14B** scores 93.9% on MATH-500 — outperforming models four times its size on quantitative tasks. Its explicit chain-of-thought reasoning shows every calculation step, making it easy for the Evaluator to verify financial projections. At L4, **GPT-OSS 20B** provides even stronger quantitative reasoning with /think and /no_think mode toggles.
+
+**Risk Analyst (qwen3:14b → qwen3.5:9b)** needs to think about edge cases and failure modes. At L3, the 14B model provides ample reasoning capacity. At L4, the smaller 9B model fits in VRAM alongside other models, and the /think mode provides sufficient analytical depth for risk identification.
+
+**Strategy Consultant (qwen3:32b → gemma4:31b)** does the highest-value writing work — synthesizing findings into recommendations with options, tradeoffs, and persuasive argumentation. At L3, **Qwen 3 32B** scores 95.2 on ArenaHard and produces notably coherent long-form business writing. At L4, **Gemma 4 31B** (Google) provides top-tier writing and synthesis quality with a GPU+RAM split for memory efficiency.
+
+**Evaluator (gemini-2.5-flash)** is the independent quality judge. Using a cloud model from a different provider (Google) than all pipeline agents (Ollama/local) maximizes heterogeneity. Gemini 2.5 Flash provides strong analytical reasoning for rubric-based evaluation, and the free tier is sufficient for thesis experiments. The OpenAI-compatible API means minimal code changes — just a base URL swap in the OpenAI Python SDK.
 
 ---
 
-## Recommended Ollama commands and configuration
+## Model diversity across levels
 
-To get started, pull these models on each machine:
+The progressive complexity experiment benefits from increasing model diversity at each level:
 
-On the **MacBook M3**: `ollama pull qwen3:8b` (Engagement Manager) and optionally `ollama pull phi4-mini-reasoning` (L4 EM). On the **Ryzen 7 PC**: `ollama pull qwen3:32b` (Consultant and Strategy), `ollama pull qwen3:14b` (Market Researcher), and `ollama pull deepseek-r1:14b` (Financial Analyst).
+- **L1:** Single model (qwen2.5:14b) — 1 family, 1 provider
+- **L2:** Qwen 3 family only (8B/14B/32B) — 1 family, 1 provider, 3 sizes
+- **L3:** Qwen 3 + DeepSeek R1 — 2 families, 1 provider, 3 sizes
+- **L4:** Qwen 3.5 + GPT-OSS + Gemma 4 + Gemini — 4 families, 2 providers (Ollama + Google AI Studio), 4 sizes
 
-Set these environment variables on both machines for optimal multi-agent performance:
+This progression from homogeneous to highly heterogeneous is a core thesis argument: more diverse model selection, matched to agent roles, produces better output quality.
+
+---
+
+## Ollama configuration
+
+Set these environment variables for optimal multi-agent performance:
 
 - `OLLAMA_FLASH_ATTENTION=1` — reduces memory usage, speeds up attention
 - `OLLAMA_KV_CACHE_TYPE=q8_0` — halves KV cache memory with minimal quality impact
 - `OLLAMA_KEEP_ALIVE=-1` — prevents model unloading between agent calls
-- `OLLAMA_HOST=0.0.0.0` — enables cross-machine access
 
-When calling models via the Ollama API, use the `/api/chat` endpoint with `"options": {"num_ctx": 8192}` consistently. For the Strategy Consultant and Market Researcher agents that need to process long documents, you can push to `num_ctx: 32768` on the Ryzen 7 — but be aware this adds ~4–8GB to memory usage for 32B models.
+When calling models via the Ollama API, use the `/api/chat` endpoint with `"options": {"num_ctx": 8192}` for small inputs (EM decomposition) and `"options": {"num_ctx": 32768}` for research loops, synthesis, reviews, and downstream agents that receive cumulative context.
 
-## Conclusion
+### Pull commands
 
-The optimal architecture uses **four distinct models across two machines**: Qwen 3 8B on the MacBook for fast orchestration, and Qwen 3 32B, Qwen 3 14B, and DeepSeek R1 14B on the Ryzen 7 for heavy reasoning, research, and quantitative analysis. This replaces your Qwen 2.5 14B baseline with a generation-newer model family that offers thinking mode toggles, better reasoning, and stronger writing — while properly respecting your MacBook's 16GB memory ceiling. The single most impactful hardware upgrade would be adding a dedicated GPU to the Ryzen 7 PC, which would boost generation speed by 5–10× on the models that matter most. And the single most impactful model choice is using DeepSeek R1 Distill for the Financial Analyst — its specialist reasoning training makes it dramatically better at quantitative tasks than any generalist model at the same size.
+```bash
+# Level 1
+ollama pull qwen2.5:14b
+
+# Level 2-3
+ollama pull qwen3:8b
+ollama pull qwen3:14b
+ollama pull qwen3:32b
+ollama pull deepseek-r1:14b   # L3 Financial Analyst
+
+# Level 4
+ollama pull qwen3.5:9b        # EM + RA
+ollama pull qwen3.5:35b-a3b   # MR (MoE)
+ollama pull gpt-oss:20b       # FA
+ollama pull gemma4:31b         # SC
+```
+
+The Evaluator (gemini-2.5-flash) requires a Google AI Studio API key set via `EVALUATOR_API_KEY` or `GEMINI_API_KEY` environment variable.

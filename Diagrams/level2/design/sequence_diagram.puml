@@ -1,0 +1,68 @@
+@startuml l2_sequence
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam sequenceMessageAlign center
+
+title **Level 2 — Execution Sequence**\n//3-Agent Sequential Pipeline//
+
+actor Client as client
+participant "Orchestrator" as orch #F5F5F5
+participant "Engagement\nManager\n(qwen3:8b)" as em #E3F2FD
+participant "Market\nResearcher\n(qwen3:14b)" as mr #E8F5E9
+participant "Strategy\nConsultant\n(qwen3:32b)" as sc #F3E5F5
+participant "Evaluator\n(gemini-2.5-flash)" as ev #FFFDE7
+database "SQLite" as db
+
+client -> orch : Business question
+orch -> db : log(session_start)
+
+== Phase 1: Task Decomposition ==
+
+orch -> em : question
+activate em
+em --> orch : Analysis Plan JSON\n(workstreams, sub-questions)
+deactivate em
+orch -> db : log(em_completed)
+orch -> orch : validate(AnalysisPlanSchema)
+
+== Phase 2: Market Research ==
+
+orch -> mr : question + analysis_plan
+activate mr
+note right of mr
+  **Research loop (max 8 rounds):**
+  search_web() → read_document()
+  Then synthesize into structured JSON
+end note
+mr --> orch : Market Analysis JSON
+deactivate mr
+orch -> db : log(mr_completed)
+orch -> orch : validate(MarketAnalysisSchema)
+
+== Phase 3: Report Synthesis (Streamed) ==
+
+orch -> sc : question + plan + market_analysis
+activate sc
+loop for each token
+  sc --> orch : streaming token
+  orch --> client : SSE: {type: "token"}
+end
+sc --> orch : report complete
+deactivate sc
+orch -> db : log(sc_completed)
+
+== Phase 4: Evaluation ==
+
+orch -> ev : question + report
+activate ev
+ev --> orch : Scorecard JSON\n(6 criteria × 1-10)
+deactivate ev
+orch -> db : log(evaluation_completed)
+
+orch -> client : SSE: {type: "done",\nscorecard}
+
+@enduml

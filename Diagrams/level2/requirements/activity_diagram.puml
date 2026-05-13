@@ -1,0 +1,52 @@
+@startuml l2_activity
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 2 — Activity Diagram (Three-Agent Pipeline)**
+
+|Client|
+start
+:Submit business question;
+
+|#E3F2FD|Engagement Manager (qwen3:8b)|
+:Receive client question;
+:Decompose into workstreams\n& sub-questions;
+:Create analysis plan (JSON);
+note right
+  **Tools:** none
+  **Cannot:** research, analyze, write report
+end note
+
+|#E8F5E9|Market Researcher (qwen3:14b)|
+:Receive question + analysis plan;
+:Research loop (max 8 rounds):
+  search_web() → read_document();
+:Synthesize findings into\nstructured Market Analysis JSON;
+note right
+  **Tools:** search_web(), read_document()
+  **Cannot:** do financials, assess risks
+end note
+
+|#F3E5F5|Strategy Consultant (qwen3:32b)|
+:Receive question + plan +\nmarket analysis;
+:Synthesize into consulting report\nwith options & tradeoffs;
+:Stream report tokens via SSE;
+note right
+  **Tools:** none (reads context only)
+  **Cannot:** search for new info
+end note
+
+|#FFFDE7|Evaluator (gemini-2.5-flash)|
+:Score report on 6-criterion rubric;
+:Produce evaluation scorecard;
+
+|Client|
+:Receive report + evaluation scorecard;
+stop
+
+@enduml

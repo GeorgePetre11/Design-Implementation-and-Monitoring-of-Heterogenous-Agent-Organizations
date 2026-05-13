@@ -1,0 +1,89 @@
+@startuml l4_hybrid_architecture
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Level 4 — Hybrid Hierarchical Architecture**\n//5 Pipeline Agents + Evaluator, EM Review, Revision Loops//
+
+package "Client Layer" #FFFDE7 {
+  actor "Client" as client
+  component "Web UI\n(index.html)" as ui
+  component "Dashboard\n(dashboard.html)" as dash
+}
+
+package "Backend (FastAPI)" #E8F5E9 {
+  component "POST /analyze\n(SSE Streaming)" as api
+  component "POST /stop\n(Cancel pipeline)" as stop
+  component "GET /status\nWS /ws" as status
+  component "Orchestrator\n(Python — No LLM)" as orch
+  component "Schema Validator\n(Pydantic)" as val
+  component "EM Review Gate" as review
+}
+
+package "Pipeline Agents (Ollama — Heterogeneous)" #E3F2FD {
+  component "Engagement\nManager\n(qwen3.5:9b)" as em
+  component "Market\nResearcher\n(qwen3.5:35b-a3b)" as mr
+  component "Financial\nAnalyst\n(gpt-oss:20b)" as fa
+  component "Risk\nAnalyst\n(qwen3.5:9b)" as ra
+  component "Strategy\nConsultant\n(gemma4:31b)" as sc
+}
+
+package "LLM Providers" #FFF3E0 {
+  component "Ollama\n(Local Inference)" as ollama
+  component "Google AI Studio\n(Cloud API)" as google
+}
+
+package "Evaluator Service (Separate Docker)" #FFFDE7 {
+  component "Evaluator FastAPI\n(gemini-2.5-flash)" as ev
+}
+
+package "Persistence & Monitoring" #F3E5F5 {
+  database "SQLite\n(Events + Sessions)" as db
+  component "WebSocket\nBroadcast" as ws
+  component "State Manager\n(In-Memory)" as statemgr
+}
+
+client --> ui
+ui --> api : "HTTP POST"
+ui --> stop : "Cancel"
+api --> orch
+orch --> em
+orch --> review : "EM reviews\neach output"
+review --> mr : "approve /\nrevise (max 1)"
+review --> fa
+review --> ra
+review --> sc
+orch --> val : "validate\noutputs"
+orch --> ev : "HTTP POST\n/evaluate"
+ev --> sc : "revision\n(if low scores)"
+ev ..> google
+
+em ..> ollama
+mr ..> ollama
+fa ..> ollama
+ra ..> ollama
+sc ..> ollama
+
+api --> ui : "SSE stream"
+status --> dash : "WebSocket"
+orch --> db : "log events\n+ save sessions"
+db --> ws
+ws --> dash
+orch --> statemgr : "update state\n+ full report"
+
+note bottom
+  **Level 4 Architecture — Hybrid Hierarchical:**
+  * Sequential pipeline + EM review after each specialist
+  * Max 1 revision per agent (EM-driven)
+  * Evaluator can trigger SC revision (max 2 rounds)
+  * 4 model families: Qwen 3.5, GPT-OSS, Gemma 4, Gemini
+  * 2 providers: Ollama (local) + Google AI Studio (cloud)
+  * State persistence + UI recovery on page refresh
+  * Stop button for pipeline cancellation
+end note
+
+@enduml

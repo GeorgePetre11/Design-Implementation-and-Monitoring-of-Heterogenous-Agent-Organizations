@@ -15,7 +15,7 @@ skinparam object {
 }
 
 object "**Engagement Manager**" as em #E3F2FD {
-  Model = qwen3:8b (Small)
+  Model = qwen3:8b (L2-L3) / qwen3.5:9b (L4)
   Provider = Ollama (local)
   Tools = none
   Output = Analysis Plan JSON
@@ -24,7 +24,7 @@ object "**Engagement Manager**" as em #E3F2FD {
 }
 
 object "**Market Researcher**" as mr #E8F5E9 {
-  Model = qwen3:14b (Medium)
+  Model = qwen3:14b (L2-L3) / qwen3.5:35b-a3b (L4)
   Provider = Ollama (local)
   Tools = search_web(), read_document()
   Output = Market Analysis JSON
@@ -33,7 +33,7 @@ object "**Market Researcher**" as mr #E8F5E9 {
 }
 
 object "**Financial Analyst**" as fa #FFF3E0 {
-  Model = deepseek-r1:14b (L3) / qwen3:14b (L4)
+  Model = deepseek-r1:14b (L3) / gpt-oss:20b (L4)
   Provider = Ollama (local)
   Tools = none (pure analysis from context)
   Output = Financial Analysis JSON
@@ -42,7 +42,7 @@ object "**Financial Analyst**" as fa #FFF3E0 {
 }
 
 object "**Risk Analyst**" as ra #FFEBEE {
-  Model = qwen3:14b (Medium)
+  Model = qwen3:14b (L3) / qwen3.5:9b (L4)
   Provider = Ollama (local)
   Tools = search_web(), read_document(), assess_risk()
   Output = Risk Matrix JSON
@@ -51,7 +51,7 @@ object "**Risk Analyst**" as ra #FFEBEE {
 }
 
 object "**Strategy Consultant**" as sc #F3E5F5 {
-  Model = qwen3:32b (L3) / qwen3.5:27b (L4)
+  Model = qwen3:32b (L3) / gemma4:31b (L4)
   Provider = Ollama (local)
   Tools = reads all analyses from context
   Output = Consulting Report JSON
@@ -59,9 +59,9 @@ object "**Strategy Consultant**" as sc #F3E5F5 {
   Reasoning = /think mode, best writing & reasoning
 }
 
-object "**Evaluator** (L4 only)" as ev #FFFDE7 {
-  Model = Claude Opus 4.6 (Large)
-  Provider = Anthropic API (cloud)
+object "**Evaluator** (L4 + Standalone)" as ev #FFFDE7 {
+  Model = gemini-2.5-flash
+  Provider = Google AI Studio (cloud)
   Tools = reads report from context
   Output = Scorecard JSON
   Role = Independent quality judge
@@ -76,9 +76,9 @@ sc -[hidden]left- ev
 
 note as N1
   **Heterogeneity Dimensions:**
-  1. **Model Size:** 8B → 14B → 27B/32B
-  2. **Model Family:** Qwen 3, Qwen 3.5, DeepSeek R1, Claude
-  3. **Provider:** Ollama (local) + Anthropic API (evaluator)
+  1. **Model Size:** 9B → 14B → 20B → 31B/35B
+  2. **Model Family:** Qwen 3, Qwen 3.5, DeepSeek R1, GPT-OSS, Gemma 4, Gemini
+  3. **Provider:** Ollama (local) + Google AI Studio (evaluator)
   4. **Tools:** Different tool sets per agent
   5. **Reasoning:** /think vs /no_think modes, chain-of-thought control
 end note

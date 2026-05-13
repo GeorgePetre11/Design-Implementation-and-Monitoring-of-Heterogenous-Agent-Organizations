@@ -1,0 +1,80 @@
+@startuml l3_pipeline_architecture
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Level 3 — Pipeline Architecture**\n//5 Specialist Agents + Evaluator//
+
+package "Client Layer" #FFFDE7 {
+  actor "Client" as client
+  component "Web UI\n(index.html)" as ui
+  component "Dashboard\n(dashboard.html)" as dash
+}
+
+package "Backend (FastAPI)" #E8F5E9 {
+  component "POST /analyze\n(SSE Streaming)" as api
+  component "GET /status\nWS /ws" as status
+  component "Orchestrator\n(Python — No LLM)" as orch
+  component "Schema Validator\n(Pydantic)" as val
+}
+
+package "Pipeline Agents (Ollama)" #E3F2FD {
+  component "Engagement\nManager\n(qwen3:8b)" as em
+  component "Market\nResearcher\n(qwen3:14b)" as mr
+  component "Financial\nAnalyst\n(deepseek-r1:14b)" as fa
+  component "Risk\nAnalyst\n(qwen3:14b)" as ra
+  component "Strategy\nConsultant\n(qwen3:32b)" as sc
+}
+
+package "LLM Providers" #FFF3E0 {
+  component "Ollama\n(Local Inference)" as ollama
+  component "Google AI Studio\n(Cloud)" as google
+}
+
+package "Evaluator Service" #FFFDE7 {
+  component "Evaluator\n(gemini-2.5-flash)" as ev
+}
+
+package "Monitoring" #F3E5F5 {
+  database "SQLite\nEvents" as db
+  component "WebSocket\nBroadcast" as ws
+}
+
+client --> ui
+ui --> api : "HTTP POST"
+api --> orch
+orch --> em
+orch --> mr
+orch --> fa
+orch --> ra
+orch --> sc
+orch --> val : "validate"
+orch --> ev : "HTTP POST"
+ev ..> google
+
+em ..> ollama
+mr ..> ollama
+fa ..> ollama
+ra ..> ollama
+sc ..> ollama
+
+api --> ui : "SSE stream"
+status --> dash : "WebSocket"
+orch --> db : "log events"
+db --> ws
+ws --> dash
+
+note bottom
+  **Level 3 Architecture:**
+  * Sequential pipeline: EM → MR → FA → RA → SC
+  * 2 model families (Qwen 3 + DeepSeek R1)
+  * 5 pipeline agents (Ollama) + evaluator (Google AI Studio)
+  * Cumulative data routing
+  * No revision capability
+end note
+
+@enduml

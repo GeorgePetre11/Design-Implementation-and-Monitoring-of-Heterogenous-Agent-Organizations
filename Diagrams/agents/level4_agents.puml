@@ -1,0 +1,57 @@
+@startuml level4_agents
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Level 4 — Six Agents (Hybrid Hierarchical)**
+
+actor "Client" as client
+
+package "Orchestrator (Python — No LLM)" as orch #F5F5F5 {
+  component "Task Router\n& EM Review Gate" as router
+  component "Validation\n& Schema\nEnforcer" as val
+}
+
+component "**Engagement Manager**\n//qwen3.5:9b (Ollama)//\n\nDecomposes question & reviews\neach agent's output. Can send\nwork back with feedback (max 1 revision).\n----\nTools: none\nOutput: Analysis Plan JSON + Review decisions\nMode: /think (review), /no_think (decomposition)" as em #E3F2FD
+
+component "**Market Researcher**\n//qwen3.5:35b-a3b (Ollama)//\n\n35B MoE with 3B active params.\nStricter source requirements:\nevery claim needs a URL.\n----\nTools: search_web(), read_document()\nOutput: Market Analysis JSON\nMode: /no_think (factual synthesis)" as mr #E8F5E9
+
+component "**Financial Analyst**\n//gpt-oss:20b (Ollama)//\n\nNative chain-of-thought math.\nMust cite which MR data point\neach number comes from.\n----\nTools: none (analysis from context)\nOutput: Financial Analysis JSON\nMode: /think (calculations), /no_think (extraction)" as fa #FFF3E0
+
+component "**Risk Analyst**\n//qwen3.5:9b (Ollama)//\n\nReceives FA output, can flag\nfinancial risks contradicting FA.\nMust cite sources for every risk.\n----\nTools: search_web(), read_document(), assess_risk()\nOutput: Risk Assessment JSON\nMode: /think (analytical depth)" as ra #FFEBEE
+
+component "**Strategy Consultant**\n//gemma4:31b (Ollama)//\n\nCannot introduce ANY claim\nnot in MR/FA/RA outputs.\nTop-tier writing and synthesis.\n----\nTools: none (all data injected by orchestrator)\nOutput: Consulting Report (Markdown, streamed)\nMode: no thinking toggle" as sc #F3E5F5
+
+component "**Evaluator**\n//gemini-2.5-flash (Google AI Studio)//\n\nScores on 6-criterion rubric.\nCan trigger SC revision if\nscores below threshold (max 2 rounds).\n----\nTools: none\nOutput: Evaluation Scorecard JSON\nProvider: Cloud (separate FastAPI service)" as ev #FFFDE7
+
+client --> router
+router --> em
+em --> val
+val --> mr
+mr --> em : "EM review"
+em --> val
+val --> fa
+fa --> em : "EM review"
+em --> val
+val --> ra
+ra --> em : "EM review"
+em --> val
+val --> sc
+sc --> em : "EM review"
+em --> ev
+ev --> sc : "revision\n(if low scores)"
+ev --> client : "report +\nscorecard"
+
+note bottom
+  **Level 4 — Hybrid Hierarchical**
+  4 model families (Qwen 3.5, GPT-OSS, Gemma 4, Gemini)
+  2 providers (Ollama local + Google AI Studio cloud)
+  EM reviews every agent output (max 1 revision each)
+  Evaluator can trigger SC revision (max 2 rounds)
+end note
+
+@enduml

@@ -39,6 +39,30 @@ MAX_EVAL_ITERATIONS = 2         # max evaluator rounds (up to 1 revision driven 
 EVAL_CRITERION_THRESHOLD = 5    # any criterion below this triggers a revision
 MAX_SC_UPSTREAM_REVISIONS = 1   # max times SC can request upstream agent re-runs
 
+
+class PipelineCancelled(Exception):
+    pass
+
+
+def _check_cancel():
+    if state.is_cancelled():
+        raise PipelineCancelled()
+
+
+def _save_session(session_id, question, status, revisions, scorecard):
+    s = state.get_state()
+    agent_outputs = {name: ag.output for name, ag in s.agents.items() if ag.output}
+    monitor.save_session(
+        session_id=session_id,
+        question=question,
+        status=status,
+        started_at=s.started_at,
+        agent_outputs=agent_outputs,
+        full_report=s.full_report,
+        scorecard=scorecard,
+        revisions=revisions,
+    )
+
 _REQUEST_REVISION_RE = re.compile(
     r"REQUEST_REVISION:\s*(financial_analyst|market_researcher|risk_analyst)"
     r"\s*--\s*(.+)",
@@ -272,11 +296,33 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     ]
 
     state.reset_state(session_id, question, agent_configs)
+    state.clear_cancel()
     revisions: dict[str, dict] = {}
+
+    try:
+        yield from _run_pipeline_phases(
+            question, session_id, em, mr, fa, ra, sc, revisions,
+        )
+    except PipelineCancelled:
+        state.stop_pipeline()
+        _save_session(session_id, question, "stopped", revisions, state.get_state().scorecard)
+        yield _sse({"type": "stopped", "session_id": session_id})
+        return
+
+
+def _run_pipeline_phases(
+    question: str, session_id: str,
+    em, mr, fa, ra, sc,
+    revisions: dict[str, dict],
+) -> Generator[str, None, None]:
+    """Inner generator containing all pipeline phases. Raises PipelineCancelled."""
+
+    scorecard_final: dict | None = None
 
     # ------------------------------------------------------------------
     # Phase 1: Engagement Manager -- decompose the question
     # ------------------------------------------------------------------
+    _check_cancel()
     state.update_agent(em.name, "working")
     yield _sse({
         "type": "agent_start",
@@ -313,6 +359,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     # ------------------------------------------------------------------
     # Phase 2: Market Researcher -- investigate the market
     # ------------------------------------------------------------------
+    _check_cancel()
     state.update_agent(mr.name, "working")
     yield _sse({
         "type": "agent_start",
@@ -347,6 +394,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     # ------------------------------------------------------------------
     # Phase 3: Financial Analyst -- quantitative analysis
     # ------------------------------------------------------------------
+    _check_cancel()
     state.update_agent(fa.name, "working")
     yield _sse({
         "type": "agent_start",
@@ -411,6 +459,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     # ------------------------------------------------------------------
     # Phase 4: Risk Analyst -- identify and assess risks
     # ------------------------------------------------------------------
+    _check_cancel()
     state.update_agent(ra.name, "working")
     yield _sse({
         "type": "agent_start",
@@ -445,6 +494,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     # ------------------------------------------------------------------
     # Phase 5: Strategy Consultant -- write the report (streamed)
     # ------------------------------------------------------------------
+    _check_cancel()
     state.update_agent(sc.name, "working")
     yield _sse({
         "type": "agent_start",
@@ -460,6 +510,9 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
         for token in sc.run(question, plan_data, research_data, financial_data, risk_data):
             report_chunks.append(token)
             yield _sse({"type": "token", "content": token})
+            if len(report_chunks) % 50 == 0:
+                state.set_report(strip_think_tags("".join(report_chunks)))
+                _check_cancel()
         elapsed = round(time.time() - t0, 2)
     except Exception as exc:
         state.update_agent(sc.name, "error", error=str(exc))
@@ -469,6 +522,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
         return
 
     full_report = strip_think_tags("".join(report_chunks))
+    state.set_report(full_report)
 
     # -- Intercept REQUEST_REVISION from SC (upstream agent re-run) --
     m = _REQUEST_REVISION_RE.search(full_report[:500])
@@ -542,6 +596,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
                     yield _sse({"type": "error", "agent": target_agent.name, "error": str(exc)})
 
                 # Re-run SC with corrected upstream data
+                _check_cancel()
                 yield _sse({"type": "agent_start", "agent": sc.name, "display_name": sc.display_name, "model": sc.model, "rerun": True})
                 state.update_agent(sc.name, "working")
                 monitor.log_event(session_id, "agent_start", agent_name=sc.display_name, data={"model": sc.model, "rerun": True})
@@ -552,6 +607,9 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
                     for token in sc.run(question, plan_data, research_data, financial_data, risk_data):
                         report_chunks.append(token)
                         yield _sse({"type": "token", "content": token})
+                        if len(report_chunks) % 50 == 0:
+                            state.set_report(strip_think_tags("".join(report_chunks)))
+                            _check_cancel()
                     elapsed = round(time.time() - t0_rerun, 2)
                 except Exception as exc:
                     state.update_agent(sc.name, "error", error=str(exc))
@@ -561,6 +619,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
                     return
 
                 full_report = strip_think_tags("".join(report_chunks))
+                state.set_report(full_report)
 
     state.update_agent(sc.name, "done", elapsed=elapsed)
     monitor.log_event(
@@ -573,9 +632,9 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     # ------------------------------------------------------------------
     # Phase 6: Evaluator (Gemini 2.5) -- score, optionally trigger SC revision
     # ------------------------------------------------------------------
-    scorecard_final: dict | None = None
     total_eval_elapsed = 0.0
     for round_idx in range(MAX_EVAL_ITERATIONS):
+        _check_cancel()
         round_num = round_idx + 1
         state.update_agent("evaluator", "working")
         yield _sse({
@@ -657,6 +716,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
             data={"feedback": feedback, "source": "evaluator", "round": round_num},
         )
 
+        _check_cancel()
         report_chunks = []
         try:
             t0_rev = time.time()
@@ -666,6 +726,9 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
             ):
                 report_chunks.append(token)
                 yield _sse({"type": "token", "content": token})
+                if len(report_chunks) % 50 == 0:
+                    state.set_report(strip_think_tags("".join(report_chunks)))
+                    _check_cancel()
             elapsed_rev = round(time.time() - t0_rev, 2)
             elapsed += elapsed_rev
         except Exception as exc:
@@ -679,6 +742,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
             break
 
         full_report = strip_think_tags("".join(report_chunks))
+        state.set_report(full_report)
         state.update_agent(sc.name, "done", elapsed=elapsed)
         monitor.log_event(
             session_id, "revision_complete",
@@ -690,6 +754,7 @@ def run_pipeline(question: str, session_id: str) -> Generator[str, None, None]:
     # Pipeline complete
     # ------------------------------------------------------------------
     state.finish_pipeline(revisions)
+    _save_session(session_id, question, "done", revisions, scorecard_final)
     monitor.log_event(
         session_id, "session_complete",
         data={"revisions": revisions, "final_scorecard": scorecard_final},

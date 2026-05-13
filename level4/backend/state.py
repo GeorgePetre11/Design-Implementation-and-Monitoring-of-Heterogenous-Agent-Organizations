@@ -10,6 +10,7 @@ Agent statuses: idle | working | done | reviewing | revising | approved | error
 
 import asyncio
 import json
+import threading
 import time
 from dataclasses import dataclass, field
 
@@ -46,49 +47,74 @@ class AgentState:
 class PipelineState:
     session_id: str | None = None
     question: str | None = None
-    status: str = "idle"        # idle | running | done | error
+    status: str = "idle"        # idle | running | done | stopped | error
     started_at: float | None = None
     agents: dict[str, AgentState] = field(default_factory=dict)
     activity_log: list[dict] = field(default_factory=list)
     revisions: dict[str, dict] = field(default_factory=dict)
     scorecard: dict | None = None
     scorecard_round: int = 0
+    full_report: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self, include_outputs: bool = False) -> dict:
         elapsed = None
         if self.started_at:
             elapsed = round(time.time() - self.started_at, 2)
-        return {
+        agents_dict = {}
+        for k, v in self.agents.items():
+            agent_data = {
+                "name": v.name,
+                "display_name": v.display_name,
+                "model": v.model,
+                "status": v.status,
+                "elapsed": v.elapsed,
+                "error": v.error,
+                "revision_count": v.revision_count,
+                "was_revised": v.was_revised,
+            }
+            if include_outputs:
+                agent_data["output"] = v.output
+            agents_dict[k] = agent_data
+        d = {
             "session_id": self.session_id,
             "question": self.question,
             "status": self.status,
             "elapsed": elapsed,
-            "agents": {
-                k: {
-                    "name": v.name,
-                    "display_name": v.display_name,
-                    "model": v.model,
-                    "status": v.status,
-                    "elapsed": v.elapsed,
-                    "error": v.error,
-                    "revision_count": v.revision_count,
-                    "was_revised": v.was_revised,
-                }
-                for k, v in self.agents.items()
-            },
+            "agents": agents_dict,
             "activity_log": self.activity_log[-50:],
             "revisions": self.revisions,
             "scorecard": self.scorecard,
             "scorecard_round": self.scorecard_round,
         }
+        if include_outputs:
+            d["full_report"] = self.full_report
+        return d
 
 
 # Global mutable state
 _state = PipelineState()
+_cancel_event = threading.Event()
 
 
 def get_state() -> PipelineState:
     return _state
+
+
+def set_report(text: str):
+    """Update the full report text without broadcasting."""
+    _state.full_report = text
+
+
+def request_cancel():
+    _cancel_event.set()
+
+
+def clear_cancel():
+    _cancel_event.clear()
+
+
+def is_cancelled() -> bool:
+    return _cancel_event.is_set()
 
 
 def reset_state(session_id: str, question: str, agent_configs: list[dict]):
@@ -169,6 +195,13 @@ def fail_pipeline(error: str):
     """Mark pipeline as failed."""
     _state.status = "error"
     _log_activity("pipeline_error", f"Pipeline failed: {error}")
+    _broadcast_state()
+
+
+def stop_pipeline():
+    """Mark pipeline as stopped by user."""
+    _state.status = "stopped"
+    _log_activity("pipeline_stopped", "Pipeline stopped by user")
     _broadcast_state()
 
 

@@ -11,12 +11,12 @@ title **Level 4 — Full Execution Sequence (Hybrid Hierarchical)**\n//Example: 
 
 actor Client as client
 participant "Orchestrator" as orch #F5F5F5
-participant "Engagement\nManager\n(qwen3:8b)" as em #E3F2FD
-participant "Market\nResearcher\n(qwen3:14b)" as mr #E8F5E9
-participant "Financial\nAnalyst\n(qwen3:14b)" as fa #FFF3E0
-participant "Risk\nAnalyst\n(qwen3:14b)" as ra #FFEBEE
-participant "Strategy\nConsultant\n(qwen3.5:27b)" as sc #F3E5F5
-participant "Evaluator\n(Claude Opus 4.6)" as ev #FFFDE7
+participant "Engagement\nManager\n(qwen3.5:9b)" as em #E3F2FD
+participant "Market\nResearcher\n(qwen3.5:35b-a3b)" as mr #E8F5E9
+participant "Financial\nAnalyst\n(gpt-oss:20b)" as fa #FFF3E0
+participant "Risk\nAnalyst\n(qwen3.5:9b)" as ra #FFEBEE
+participant "Strategy\nConsultant\n(gemma4:31b)" as sc #F3E5F5
+participant "Evaluator\n(gemini-2.5-flash)" as ev #FFFDE7
 database "Event\nStore" as db
 
 client -> orch : Business question
@@ -119,7 +119,7 @@ opt revision needed (max 1)
   orch -> orch : validate(ConsultingReportSchema)
 end
 
-== Phase 4: Evaluation (Claude Opus 4.6 via Anthropic API) ==
+== Phase 4: Evaluation (Gemini 2.5 Flash via Google AI Studio) ==
 
 orch -> ev : consulting_report
 activate ev

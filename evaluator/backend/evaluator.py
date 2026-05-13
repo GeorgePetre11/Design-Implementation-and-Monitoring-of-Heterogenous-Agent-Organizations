@@ -150,6 +150,7 @@ class EvaluatorAgent:
     RATE_LIMIT_BASE_DELAY = 12.0     # seconds; first 429 waits this long
     RATE_LIMIT_MAX_DELAY = 90.0      # cap any single backoff
     PARSE_RETRY_DELAY = 2.0          # short pause between schema-failure retries
+    MIN_CALL_INTERVAL = 5.0          # minimum seconds between API calls
 
     def __init__(
         self,
@@ -180,6 +181,7 @@ class EvaluatorAgent:
             api_key=self.api_key or "not-needed",
             base_url=self.base_url,
         )
+        self._last_call_time = 0.0
 
     # ------------------------------------------------------------------
     @property
@@ -338,6 +340,11 @@ class EvaluatorAgent:
 
     # ------------------------------------------------------------------
     def _call_api(self, question: str | None, report: str) -> str:
+        elapsed = time.time() - self._last_call_time
+        if elapsed < self.MIN_CALL_INTERVAL:
+            time.sleep(self.MIN_CALL_INTERVAL - elapsed)
+        self._last_call_time = time.time()
+
         q = (question or "").strip()
         if q:
             user_message = (

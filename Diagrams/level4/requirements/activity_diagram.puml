@@ -1,0 +1,95 @@
+@startuml l4_activity
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam activityDiamondBackgroundColor #FFF9C4
+
+title **Level 4 — Activity Diagram (Hybrid Hierarchical)**
+
+|Client|
+start
+:Submit business question;
+
+|#E3F2FD|Engagement Manager (qwen3.5:9b)|
+:Decompose question &\ncreate analysis plan;
+
+|#E8F5E9|Market Researcher (qwen3.5:35b-a3b)|
+:Receive plan;
+:Research market landscape\n(search_web + read_document);
+:Produce Market Analysis JSON;
+
+|#E3F2FD|Engagement Manager (qwen3.5:9b)|
+:Review market analysis;
+if (Quality sufficient?) then (yes)
+else (no)
+  |#E8F5E9|Market Researcher (qwen3.5:35b-a3b)|
+  :Revise with EM feedback;
+  |#E3F2FD|Engagement Manager (qwen3.5:9b)|
+  :Accept revised output;
+endif
+
+|#FFF3E0|Financial Analyst (gpt-oss:20b)|
+:Receive plan + market analysis;
+:Model costs, revenue, ROI,\nbreak-even, sensitivity;
+:Produce Financial Analysis JSON;
+
+|#E3F2FD|Engagement Manager (qwen3.5:9b)|
+:Review financial analysis;
+if (Quality sufficient?) then (yes)
+else (no)
+  |#FFF3E0|Financial Analyst (gpt-oss:20b)|
+  :Revise with EM feedback;
+  |#E3F2FD|Engagement Manager (qwen3.5:9b)|
+  :Accept revised output;
+endif
+
+|#FFEBEE|Risk Analyst (qwen3.5:9b)|
+:Receive plan + market +\nfinancial analysis;
+:Identify & assess risks\n(search_web + read_document\n+ assess_risk);
+:Produce Risk Assessment JSON;
+
+|#E3F2FD|Engagement Manager (qwen3.5:9b)|
+:Review risk assessment;
+if (Quality sufficient?) then (yes)
+else (no)
+  |#FFEBEE|Risk Analyst (qwen3.5:9b)|
+  :Revise with EM feedback;
+  |#E3F2FD|Engagement Manager (qwen3.5:9b)|
+  :Accept revised output;
+endif
+
+|#F3E5F5|Strategy Consultant (gemma4:31b)|
+:Receive all validated analyses;
+:Synthesize into consulting report\nwith options & tradeoffs;
+:Stream report tokens;
+
+|#E3F2FD|Engagement Manager (qwen3.5:9b)|
+:Review final report;
+if (Quality sufficient?) then (yes)
+else (no)
+  |#F3E5F5|Strategy Consultant (gemma4:31b)|
+  :Revise with EM feedback;
+  |#E3F2FD|Engagement Manager (qwen3.5:9b)|
+  :Accept revised report;
+endif
+
+|#FFFDE7|Evaluator (gemini-2.5-flash)|
+:Score on 6-criterion rubric;
+if (Any criterion < 5?) then (yes)
+  :Build revision feedback;
+  |#F3E5F5|Strategy Consultant (gemma4:31b)|
+  :Rewrite report addressing\nevaluator feedback;
+  |#FFFDE7|Evaluator (gemini-2.5-flash)|
+  :Score revised report\n(round 2 — final);
+else (no)
+endif
+:Produce final scorecard;
+
+|Client|
+:Receive report + scorecard;
+stop
+
+@enduml

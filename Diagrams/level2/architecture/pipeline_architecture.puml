@@ -1,0 +1,74 @@
+@startuml l2_pipeline_architecture
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 10
+skinparam componentStyle rectangle
+
+title **Level 2 — Pipeline Architecture**\n//3 Specialist Agents + Evaluator//
+
+package "Client Layer" #FFFDE7 {
+  actor "Client" as client
+  component "Web UI\n(index.html)" as ui
+  component "Dashboard\n(dashboard.html)" as dash
+}
+
+package "Backend (FastAPI)" #E8F5E9 {
+  component "POST /analyze\n(SSE Streaming)" as api
+  component "GET /status\nWS /ws" as status
+  component "Orchestrator\n(Python — No LLM)" as orch
+  component "Schema Validator\n(Pydantic)" as val
+}
+
+package "Pipeline Agents (Ollama)" #E3F2FD {
+  component "Engagement\nManager\n(qwen3:8b)" as em
+  component "Market\nResearcher\n(qwen3:14b)" as mr
+  component "Strategy\nConsultant\n(qwen3:32b)" as sc
+}
+
+package "LLM Provider" #FFF3E0 {
+  component "Ollama\n(Local Inference)" as ollama
+}
+
+package "Evaluator Service" #FFFDE7 {
+  component "Evaluator\n(gemini-2.5-flash)" as ev
+  component "Google AI Studio\n(Cloud API)" as google
+}
+
+package "Monitoring" #F3E5F5 {
+  database "SQLite\nEvents" as db
+  component "WebSocket\nBroadcast" as ws
+}
+
+client --> ui
+ui --> api : "HTTP POST"
+api --> orch
+orch --> em
+orch --> mr
+orch --> sc
+orch --> val : "validate\noutputs"
+orch --> ev : "HTTP POST\n/evaluate"
+ev ..> google
+
+em ..> ollama
+mr ..> ollama
+sc ..> ollama
+
+api --> ui : "SSE stream"
+status --> dash : "WebSocket"
+orch --> db : "log events"
+db --> ws
+ws --> dash
+
+note bottom
+  **Level 2 Architecture:**
+  * Sequential pipeline: EM → MR → SC
+  * 1 model family (Qwen 3), 3 sizes
+  * Evaluator is separate service (Google AI Studio)
+  * SSE for report streaming, WebSocket for dashboard
+  * No revision capability
+end note
+
+@enduml

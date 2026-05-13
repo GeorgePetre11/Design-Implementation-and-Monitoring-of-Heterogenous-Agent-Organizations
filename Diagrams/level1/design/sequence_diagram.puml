@@ -1,0 +1,48 @@
+@startuml l1_sequence
+!theme plain
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam sequenceMessageAlign center
+
+title **Level 1 — Execution Sequence**\n//Single Agent Baseline//
+
+actor Client as client
+participant "FastAPI\nBackend" as api
+participant "Generic Agent\n(qwen2.5:14b)" as agent
+participant "Ollama" as ollama
+database "SQLite" as db
+
+client -> api : POST /analyze\n{question}
+api -> db : log(session_start)
+
+activate agent
+api -> agent : question
+agent -> ollama : chat completion\n(question, no system prompt)
+activate ollama
+ollama --> agent : streaming tokens
+deactivate ollama
+
+loop for each token
+  agent --> api : yield token
+  api --> client : SSE: {type: "token", content}
+end
+
+agent --> api : report complete
+deactivate agent
+api -> db : log(session_complete)
+api --> client : SSE: {type: "done"}
+
+note right of agent
+  **No specialization:**
+  * No system prompt defining a role
+  * No structured output schema
+  * Agent handles everything:
+    research, analysis, synthesis,
+    report writing, self-evaluation
+  * Single Ollama call
+end note
+
+@enduml
